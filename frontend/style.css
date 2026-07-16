@@ -1,0 +1,1078 @@
+/* ═══════════════════════════════════════════════════════════════════
+   STAR/SID Designator — Aviation Dark Theme
+   
+   Color System:
+   - Background:  #0a0e1a (deep navy-black)
+   - Surface:     #111827 (elevated panels)
+   - Card:        #1a2035 (card backgrounds)
+   - Accent:      #00ff88 (radar green — primary actions)
+   - Cyan:        #00d4ff (info / departure accent)
+   - Amber:       #f59e0b (warnings / assigning state)
+   - Red:         #ef4444 (errors / danger)
+   - Text:        #e2e8f0 (primary text)
+   - Text Muted:  #64748b (secondary text)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── Reset & Base ─────────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --bg-base: #0a0e1a;
+    --bg-surface: #111827;
+    --bg-card: #1a2035;
+    --bg-card-hover: #1e2642;
+    --bg-card-assigned: #0f2a1f;
+
+    --accent: #00ff88;
+    --accent-dim: rgba(0, 255, 136, 0.15);
+    --accent-glow: rgba(0, 255, 136, 0.3);
+    --cyan: #00d4ff;
+    --cyan-dim: rgba(0, 212, 255, 0.15);
+    --amber: #f59e0b;
+    --amber-dim: rgba(245, 158, 11, 0.15);
+    --red: #ef4444;
+    --red-dim: rgba(239, 68, 68, 0.15);
+
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --text-dim: #475569;
+
+    --border: rgba(255, 255, 255, 0.06);
+    --border-accent: rgba(0, 255, 136, 0.2);
+    --border-cyan: rgba(0, 212, 255, 0.2);
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+    --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.4);
+
+    --transition-fast: 150ms ease;
+    --transition-normal: 250ms ease;
+    --transition-slow: 400ms ease;
+
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+}
+
+html,
+body {
+    height: 100%;
+    font-family: var(--font-sans);
+    background: var(--bg-base);
+    color: var(--text);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Header ───────────────────────────────────────────────────────── */
+
+#app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    padding: 0 20px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logo-icon {
+    font-size: 22px;
+    filter: drop-shadow(0 0 6px var(--accent-glow));
+}
+
+.logo h1 {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    color: var(--text);
+}
+
+.badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+.badge-demo {
+    background: var(--amber-dim);
+    color: var(--amber);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-live {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--border-accent);
+}
+
+.header-center {
+    display: flex;
+    align-items: center;
+}
+
+.runway-info {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+}
+
+.runway-info .rwy-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+}
+
+.runway-info .rwy-icao {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.runway-info .rwy-dep {
+    color: var(--cyan);
+}
+
+.runway-info .rwy-arr {
+    color: var(--accent);
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* Connection Status */
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transition: background var(--transition-normal);
+}
+
+.status-indicator.connected .status-dot {
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.status-indicator.connected .status-text {
+    color: var(--accent);
+}
+
+.status-indicator.disconnected .status-dot {
+    background: var(--red);
+    box-shadow: 0 0 8px var(--red-dim);
+}
+
+.status-indicator.disconnected .status-text {
+    color: var(--red);
+}
+
+.status-indicator.connecting .status-dot {
+    background: var(--amber);
+    box-shadow: 0 0 8px var(--amber-dim);
+    animation: pulse 1s ease-in-out infinite;
+}
+
+.status-indicator.connecting .status-text {
+    color: var(--amber);
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
+}
+
+.traffic-count {
+    display: flex;
+    gap: 8px;
+}
+
+.count-badge {
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+}
+
+.count-badge.dep {
+    background: var(--cyan-dim);
+    color: var(--cyan);
+    border: 1px solid var(--border-cyan);
+}
+
+.count-badge.arr {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--border-accent);
+}
+
+/* ─── Main Layout ──────────────────────────────────────────────────── */
+
+#app-main {
+    display: flex;
+    height: calc(100vh - 56px);
+    overflow: hidden;
+}
+
+.traffic-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.panel-divider {
+    width: 1px;
+    background: var(--border);
+    position: relative;
+}
+
+.panel-divider::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -1px;
+    width: 3px;
+    height: 100%;
+    background: linear-gradient(180deg,
+            transparent 0%,
+            var(--accent-dim) 20%,
+            var(--accent-dim) 80%,
+            transparent 100%);
+}
+
+/* Panel Header */
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+}
+
+.panel-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.panel-icon {
+    font-size: 18px;
+    font-weight: 700;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+}
+
+.dep-icon {
+    background: var(--cyan-dim);
+    color: var(--cyan);
+    border: 1px solid var(--border-cyan);
+}
+
+.arr-icon {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--border-accent);
+}
+
+.panel-title h2 {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text);
+}
+
+.panel-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 2px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+}
+
+.panel-search {
+    flex-shrink: 0;
+}
+
+.search-input {
+    width: 180px;
+    padding: 6px 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    outline: none;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.search-input:focus {
+    border-color: var(--accent);
+    background: rgba(0, 255, 136, 0.03);
+    box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.06);
+}
+
+.search-input::placeholder {
+    color: var(--text-dim);
+}
+
+/* ─── Aircraft List ────────────────────────────────────────────────── */
+
+.aircraft-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Custom scrollbar */
+.aircraft-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.aircraft-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.aircraft-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.aircraft-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    opacity: 0.3;
+    gap: 12px;
+}
+
+.empty-icon {
+    font-size: 48px;
+}
+
+.empty-state p {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+/* Airport Group */
+.airport-group {
+    margin-bottom: 4px;
+}
+
+.airport-group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+}
+
+.airport-group-header .rwy-tag {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+}
+
+/* ─── Aircraft Card ────────────────────────────────────────────────── */
+
+.aircraft-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    transition: all var(--transition-normal);
+    animation: cardEnter 0.3s ease-out;
+    position: relative;
+    overflow: hidden;
+}
+
+.aircraft-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3px;
+    height: 100%;
+    border-radius: 3px 0 0 3px;
+    transition: background var(--transition-normal);
+}
+
+.aircraft-card.departure-card::before {
+    background: var(--cyan);
+}
+
+.aircraft-card.arrival-card::before {
+    background: var(--accent);
+}
+
+.aircraft-card:hover {
+    background: var(--bg-card-hover);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: var(--shadow-card);
+    transform: translateY(-1px);
+}
+
+.aircraft-card.assigned {
+    background: var(--bg-card-assigned);
+    border-color: rgba(0, 255, 136, 0.15);
+}
+
+.aircraft-card.assigning {
+    border-color: rgba(245, 158, 11, 0.4);
+    animation: assignPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes cardEnter {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes assignPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 var(--amber-dim);
+    }
+
+    50% {
+        box-shadow: 0 0 0 4px var(--amber-dim);
+    }
+}
+
+/* Card Row 1: Callsign + Altitude + Squawk */
+.card-row-1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.callsign {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.5px;
+}
+
+.card-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+}
+
+.altitude {
+    color: var(--text);
+    font-weight: 500;
+}
+
+.squawk {
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.squawk-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 1px;
+    background: var(--amber);
+    display: inline-block;
+}
+
+/* Card Row 2: Airports + Runway */
+.card-row-2 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.airports {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.airports .dep-code {
+    color: var(--cyan);
+    font-weight: 600;
+}
+
+.airports .arr-code {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.airports .arrow {
+    color: var(--text-dim);
+    margin: 0 6px;
+}
+
+.runway-tag {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+}
+
+/* Card Row 3: Route */
+.card-row-3 {
+    margin-bottom: 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-sm);
+}
+
+/* Card Row 4: Procedure Select + Assign */
+.card-row-4 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.procedure-select {
+    flex: 1;
+    padding: 8px 12px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+    transition: border-color var(--transition-fast);
+}
+
+.procedure-select:focus {
+    border-color: var(--accent);
+}
+
+.procedure-select option {
+    background: #1a2035;
+    color: var(--text);
+    padding: 6px;
+}
+
+.procedure-select option.suggested {
+    font-weight: 700;
+}
+
+.assign-btn {
+    padding: 8px 20px;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--bg-base);
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.assign-btn:hover {
+    background: #33ffaa;
+    box-shadow: 0 0 16px var(--accent-glow);
+    transform: translateY(-1px);
+}
+
+.assign-btn:active {
+    transform: translateY(0);
+}
+
+.assign-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.assign-btn.assigning {
+    background: var(--amber);
+    color: #1a1a1a;
+}
+
+/* Assigned State */
+.assigned-state {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.assigned-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.assigned-check {
+    font-size: 16px;
+}
+
+.unassign-btn {
+    padding: 6px 12px;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.unassign-btn:hover {
+    color: var(--red);
+    border-color: var(--red);
+    background: var(--red-dim);
+}
+
+/* ─── Toast Notifications ──────────────────────────────────────────── */
+
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1000;
+}
+
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-elevated);
+    animation: toastEnter 0.3s ease-out;
+    backdrop-filter: blur(12px);
+    max-width: 360px;
+}
+
+.toast.success {
+    background: rgba(0, 255, 136, 0.12);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    color: var(--accent);
+}
+
+.toast.error {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: var(--red);
+}
+
+.toast.info {
+    background: rgba(0, 212, 255, 0.12);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    color: var(--cyan);
+}
+
+@keyframes toastEnter {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes toastExit {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+}
+
+/* ─── Overlays & Modals (Glassmorphism Setup) ───────────────────── */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(4, 6, 12, 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 1;
+    transition: opacity var(--transition-normal);
+}
+
+.modal-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+    display: none !important;
+}
+
+.setup-card,
+.connection-card {
+    background: rgba(26, 32, 53, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    width: 460px;
+    max-width: 90%;
+    box-shadow: var(--shadow-elevated);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.setup-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.setup-logo {
+    font-size: 24px;
+    filter: drop-shadow(0 0 6px var(--accent-glow));
+}
+
+.setup-card h2,
+.connection-card h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.setup-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.detection-box {
+    background: rgba(0, 255, 136, 0.04);
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-align: left;
+}
+
+.detection-box p {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.detected-path-text {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text);
+    word-break: break-all;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 8px;
+    border-radius: var(--radius-sm);
+}
+
+.use-detected-btn {
+    width: 100%;
+    padding: 8px;
+    background: var(--accent-dim);
+    border: 1px solid var(--border-accent);
+    color: var(--accent);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.use-detected-btn:hover {
+    background: var(--accent);
+    color: var(--bg-base);
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.manual-input-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+}
+
+.manual-input-box label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.manual-input-box input {
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    outline: none;
+    transition: border-color var(--transition-fast);
+}
+
+.manual-input-box input:focus {
+    border-color: var(--accent);
+}
+
+.save-path-btn {
+    padding: 12px;
+    background: var(--accent);
+    color: var(--bg-base);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.save-path-btn:hover {
+    background: #33ffaa;
+    box-shadow: 0 0 16px var(--accent-glow);
+}
+
+.detection-box.hidden {
+    display: none !important;
+}
+
+/* Spinner and Connection Card */
+.spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(255, 255, 255, 0.05);
+    border-top: 3px solid var(--accent);
+    border-radius: 50%;
+    margin: 0 auto 10px auto;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Connection indicator updates */
+.status-indicator.offline .status-dot {
+    background: var(--red);
+    box-shadow: 0 0 8px var(--red-dim);
+}
+
+.status-indicator.offline .status-text {
+    color: var(--red);
+}
+
+.status-indicator.demo .status-dot {
+    background: var(--amber);
+    box-shadow: 0 0 8px var(--amber-dim);
+}
+
+.status-indicator.demo .status-text {
+    color: var(--amber);
+}
+
+/* ─── Responsive ───────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+    #app-main {
+        flex-direction: column;
+    }
+
+    .panel-divider {
+        width: 100%;
+        height: 1px;
+    }
+
+    .panel-divider::before {
+        top: -1px;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(90deg,
+                transparent 0%,
+                var(--accent-dim) 20%,
+                var(--accent-dim) 80%,
+                transparent 100%);
+    }
+
+    .traffic-panel {
+        min-height: 0;
+    }
+
+    .search-input {
+        width: 140px;
+    }
+
+    .header-center {
+        display: none;
+    }
+}
+
+@media (max-width: 600px) {
+    #app-header {
+        padding: 0 12px;
+        gap: 8px;
+    }
+
+    .logo h1 {
+        font-size: 13px;
+    }
+
+    .traffic-count {
+        display: none;
+    }
+
+    .aircraft-card {
+        padding: 10px 12px;
+    }
+
+    .callsign {
+        font-size: 14px;
+    }
+}

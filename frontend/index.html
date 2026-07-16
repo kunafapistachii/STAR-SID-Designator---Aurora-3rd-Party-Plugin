@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="STAR/SID Designator — Aurora ATC procedure assignment tool for IVAO controllers">
+    <title>✈ STAR/SID Designator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- ─── Header ───────────────────────────────────────────────────── -->
+    <header id="app-header">
+        <div class="header-left">
+            <div class="logo">
+                <span class="logo-icon">✈</span>
+                <h1>STAR/SID Designator</h1>
+            </div>
+            <span id="mode-badge" class="badge badge-demo">DEMO</span>
+        </div>
+        <div class="header-center">
+            <div id="runway-info" class="runway-info">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+        <div class="header-right">
+            <div id="connection-status" class="status-indicator disconnected">
+                <span class="status-dot"></span>
+                <span class="status-text">Disconnected</span>
+            </div>
+            <div class="traffic-count">
+                <span id="dep-count" class="count-badge dep">0 DEP</span>
+                <span id="arr-count" class="count-badge arr">0 ARR</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ─── Main Split Panels ────────────────────────────────────────── -->
+    <main id="app-main">
+        <!-- Departures Panel (SID) -->
+        <section id="departures-panel" class="traffic-panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="panel-icon dep-icon">↗</span>
+                    <h2>DEPARTURES</h2>
+                    <span class="panel-label">SID</span>
+                </div>
+                <div class="panel-search">
+                    <input type="text" id="dep-search" class="search-input"
+                           placeholder="Search callsign..." autocomplete="off">
+                </div>
+            </div>
+            <div id="departures-list" class="aircraft-list">
+                <div class="empty-state" id="dep-empty">
+                    <span class="empty-icon">✈</span>
+                    <p>No departures</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Divider -->
+        <div class="panel-divider"></div>
+
+        <!-- Arrivals Panel (STAR) -->
+        <section id="arrivals-panel" class="traffic-panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="panel-icon arr-icon">↙</span>
+                    <h2>ARRIVALS</h2>
+                    <span class="panel-label">STAR</span>
+                </div>
+                <div class="panel-search">
+                    <input type="text" id="arr-search" class="search-input"
+                           placeholder="Search callsign..." autocomplete="off">
+                </div>
+            </div>
+            <div id="arrivals-list" class="aircraft-list">
+                <div class="empty-state" id="arr-empty">
+                    <span class="empty-icon">✈</span>
+                    <p>No arrivals</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ─── Toast notification container ─────────────────────────────── -->
+    <div id="toast-container"></div>
+
+    <!-- ─── Glassmorphism Setup Overlay ─────────────────────────────── -->
+    <div id="setup-overlay" class="modal-overlay hidden">
+        <div class="setup-card">
+            <div class="setup-header">
+                <span class="setup-logo">✈</span>
+                <h2>Aurora Sector Configuration</h2>
+            </div>
+            <p class="setup-desc">Please set your local Aurora <strong>Include</strong> folder path to scan sector procedures (.SID / .STR).</p>
+            
+            <div id="detection-box" class="detection-box hidden">
+                <p>We auto-detected Aurora files at this path:</p>
+                <div class="detected-path-text" id="detected-path-text">C:\IVAO\Aurora\SectorFiles\Include</div>
+                <button id="use-detected-btn" class="use-detected-btn">Use Detected Path</button>
+            </div>
+
+            <div class="manual-input-box">
+                <label for="manual-path-input">Or paste path manually:</label>
+                <input type="text" id="manual-path-input" placeholder="e.g. F:\Aurora\SectorFiles\Include" autocomplete="off">
+            </div>
+
+            <button id="save-path-btn" class="save-path-btn">Save Path</button>
+        </div>
+    </div>
+    
+    <!-- ─── Lost Server Connection Overlay ───────────────────────────── -->
+    <div id="server-connection-overlay" class="modal-overlay hidden">
+        <div class="connection-card">
+            <div class="spinner"></div>
+            <h2>Connecting...</h2>
+            <p>Lost connection to STAR/SID Designator Bridge Server</p>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

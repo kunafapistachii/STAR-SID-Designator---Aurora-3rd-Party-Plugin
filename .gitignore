@@ -1,0 +1,20 @@
+# Environment files
+.env
+.env.local
+
+# Python virtual environment
+.venv/
+env/
+venv/
+ENV/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Temporary files
+.tmp/
+tmp/
+*.log
