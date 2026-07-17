@@ -49,21 +49,42 @@ def _is_coordinate(value: str) -> bool:
     return bool(re.match(r'^[NSEW]-?\d', value))
 
 
+def clean_runway(rwy_str: str) -> List[str]:
+    """Clean runway strings (e.g. 'RNAV 25L', 'ILS 09R', '14/32') into standard list format.
+    Returns: ['25L'], ['09R'], ['14', '32'].
+    """
+    parts = rwy_str.split('/')
+    results = []
+    for p in parts:
+        match = re.search(r'(\d{2}[LRC]?)\b', p, re.IGNORECASE)
+        if match:
+            results.append(match.group(1).upper())
+        else:
+            cleaned = p.strip().upper()
+            if cleaned:
+                results.append(cleaned)
+    return results
+
+
 def _is_header_line(fields: List[str]) -> bool:
     """Check if a semicolon-split line is a procedure LABEL (header) line.
 
-    Requires:
-    - First field is exactly 4 uppercase letters (ICAO code)
-    - At least 3 fields total (ICAO, runways, procedure name)
-
-    This strict check prevents 3-letter fix names (e.g. "DKI") on track lines
-    from being misidentified as ICAO headers — a bug already caught and fixed
-    during real-data testing.
+    Prevents false positives from track lines containing 4-letter fix names
+    (e.g. 'KUTA;KUTA;+5000') by verifying column relations and format properties.
     """
     if len(fields) < 3:
         return False
     icao_candidate = fields[0].strip()
-    return bool(re.match(r'^[A-Z]{4}$', icao_candidate))
+    if not re.match(r'^[A-Z]{4}$', icao_candidate):
+        return False
+    # Track lines repeat the same fix name (e.g., KUTA;KUTA), header lines do not
+    if fields[0].strip() == fields[1].strip():
+        return False
+    # Procedure name (index 2) must not look like an altitude restriction
+    name_candidate = fields[2].strip()
+    if not name_candidate or any(char in name_candidate for char in ['+', '-', 'FL']):
+        return False
+    return True
 
 
 def parse_procedure_file(path: str) -> List[Procedure]:
@@ -87,9 +108,12 @@ def parse_procedure_file(path: str) -> List[Procedure]:
             if not line:
                 continue
 
-            # Split by semicolon, keep non-empty fields
-            fields = [f.strip() for f in line.split(';') if f.strip()]
-            if not fields:
+            # Split by semicolon, preserving empty fields so indexes do not shift
+            fields = [f.strip() for f in line.split(';')]
+            # Remove trailing empty field if it's just from a trailing semicolon
+            if fields and not fields[-1]:
+                fields.pop()
+            if not fields or not any(fields):
                 continue
 
             # --- LABEL (header) line ---
@@ -100,7 +124,12 @@ def parse_procedure_file(path: str) -> List[Procedure]:
 
                 icao = fields[0].strip()
                 runways_raw = fields[1] if len(fields) > 1 else ''
-                runways = [r.strip() for r in runways_raw.split(':') if r.strip()]
+                # Split raw runway config by ':' and clean each component
+                runways = []
+                for rwy in runways_raw.split(':'):
+                    if rwy.strip():
+                        runways.extend(clean_runway(rwy))
+
                 name = fields[2].strip() if len(fields) > 2 else ''
                 # Fields 3,4 = label lat/lon (skip)
                 proc_type_str = fields[5].strip() if len(fields) > 5 else '0'
@@ -120,13 +149,13 @@ def parse_procedure_file(path: str) -> List[Procedure]:
             # --- TRACK line (belongs to current procedure) ---
             elif current_proc is not None:
                 # Skip lines that contain coordinate data (geometry only)
-                if any(_is_coordinate(f) for f in fields):
+                if any(_is_coordinate(f) for f in fields if f):
                     continue
 
                 # Remaining fields should be fix names.
-                # Pattern: FIXNAME;FIXNAME; — same name repeated (one fix per line)
-                # Collect unique fix names, preserving order of first appearance.
                 for f_val in fields:
+                    if not f_val:
+                        continue
                     f_val = f_val.strip()
                     # Valid fix name: 2-5 uppercase alphanumeric, starts with letter
                     if re.match(r'^[A-Z][A-Z0-9]{1,4}$', f_val):

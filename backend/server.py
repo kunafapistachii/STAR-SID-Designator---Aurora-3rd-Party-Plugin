@@ -133,7 +133,7 @@ class DesignatorServer:
         status = self.app_status
         if status == 'ready':
             if self.demo_mode:
-                logger.info("Demo mode: using mock procedure data for WIII")
+                logger.info("Demo mode: using mock procedure data for WIII / WADY / WADD / WADL")
                 self.procedure_db = self._build_demo_procedures()
                 self.runway_config = self._build_demo_runway_config()
             else:
@@ -197,7 +197,6 @@ class DesignatorServer:
         try:
             # 1. Get runway config
             self.runway_config = await self.bridge.get_runway_config()
-
             # 2. Get traffic list
             callsigns = await self.bridge.get_traffic_list()
 
@@ -207,49 +206,50 @@ class DesignatorServer:
                 fp = await self.bridge.get_flight_plan(cs)
                 pos = await self.bridge.get_traffic_position(cs)
 
-                if not fp:
-                    continue
-
-                dep = fp.get('departure', '')
-                arr = fp.get('arrival', '')
-                route = fp.get('route', '')
-                route_fixes = parse_route_string(route)
+                # Safe fallback if flight plan is missing or empty
+                dep = fp.get('departure', '') if fp else ''
+                arr = fp.get('arrival', '') if fp else ''
+                route = fp.get('route', '') if fp else ''
+                route_fixes = parse_route_string(route) if route else []
 
                 altitude = pos.get('altitude', '') if pos else ''
                 squawk = pos.get('squawk', '') if pos else ''
                 current_wp = pos.get('waypoint', '') if pos else ''
 
-                # Determine if departure or arrival for a controlled airport
-                traffic_type = None
+                # Determine if departure, arrival, or overfly for controlled airports
+                traffic_type = 'overfly'
                 airport = ''
                 runway = ''
                 procedures = []
 
-                if dep in self.runway_config and dep in self.procedure_db:
+                if dep and dep in self.runway_config:
                     traffic_type = 'departure'
                     airport = dep
                     dep_rwys = self.runway_config[dep].get('dep_rwys', [])
                     runway = dep_rwys[0] if dep_rwys else ''
-                    procedures = self.procedure_db[dep].get('sids', [])
+                    procedures = self.procedure_db.get(dep, {}).get('sids', [])
 
-                elif arr in self.runway_config and arr in self.procedure_db:
+                elif arr and arr in self.runway_config:
                     traffic_type = 'arrival'
                     airport = arr
                     arr_rwys = self.runway_config[arr].get('arr_rwys', [])
                     runway = arr_rwys[0] if arr_rwys else ''
-                    procedures = self.procedure_db[arr].get('stars', [])
+                    procedures = self.procedure_db.get(arr, {}).get('stars', [])
 
-                if not traffic_type:
-                    continue
+                else:
+                    # Overfly default: show airport information if available in flight plan
+                    airport = dep or arr or ''
 
-                # Run matcher
-                suggestions = match_procedures(route_fixes, runway, procedures)
+
+
+                # Run matcher only if procedures are loaded
+                suggestions = match_procedures(route_fixes, runway, procedures) if procedures else []
 
                 # Get all procedure names for this runway
                 all_procs = [
                     p.name for p in procedures
                     if not runway or not p.runways or runway in p.runways
-                ]
+                ] if procedures else []
 
                 # Preserve existing assignment if any
                 assigned = None
@@ -268,7 +268,7 @@ class DesignatorServer:
                     'airport': airport,
                     'assigned': assigned,
                     'current_waypoint': current_wp,
-                    'suggestions': suggestions[:5],  # Top 5 matches
+                    'suggestions': suggestions[:5],
                     'all_procedures': all_procs,
                 }
 
@@ -280,53 +280,94 @@ class DesignatorServer:
     # ─── Demo data ──────────────────────────────────────────────────────
 
     def _build_demo_procedures(self) -> Dict[str, Dict[str, List[Procedure]]]:
-        """Build mock procedure data for WIII (Soekarno-Hatta, Jakarta)."""
-        sids = [
-            Procedure('WIII', ['25L'], 'EGUKO 2L', 0, [],
-                      ['EGUKO', 'ONILI', 'PAPAF']),
-            Procedure('WIII', ['25L'], 'ABASA 2L', 0, [],
-                      ['ABASA', 'PAPAF', 'ELKIT']),
-            Procedure('WIII', ['25L'], 'METRO 1L', 0, [],
-                      ['METRO', 'DKI', 'ONILI']),
-            Procedure('WIII', ['25L'], 'IRWAK 1L', 0, [],
-                      ['IRWAK', 'ELKIT', 'NININ']),
-            Procedure('WIII', ['25L'], 'TOPIN 1L', 0, [],
-                      ['TOPIN', 'PAPAF', 'ONILI']),
-            Procedure('WIII', ['25R'], 'EGUKO 2R', 0, [],
-                      ['EGUKO', 'ONILI', 'PAPAF']),
-            Procedure('WIII', ['25R'], 'ABASA 2R', 0, [],
-                      ['ABASA', 'PAPAF', 'ELKIT']),
-            Procedure('WIII', ['25R'], 'METRO 1R', 0, [],
-                      ['METRO', 'DKI', 'ONILI']),
+        """Build mock procedure data for WIII, WADY, WADD, WADL (multi-aerodrome demo)."""
+
+        # ── WIII (Soekarno-Hatta, Jakarta) ──────────────────────────────
+        wiii_sids = [
+            Procedure('WIII', ['25L'], 'EGUKO 2L', 0, [], ['EGUKO', 'ONILI', 'PAPAF']),
+            Procedure('WIII', ['25L'], 'ABASA 2L', 0, [], ['ABASA', 'PAPAF', 'ELKIT']),
+            Procedure('WIII', ['25L'], 'METRO 1L', 0, [], ['METRO', 'DKI', 'ONILI']),
+            Procedure('WIII', ['25L'], 'IRWAK 1L', 0, [], ['IRWAK', 'ELKIT', 'NININ']),
+            Procedure('WIII', ['25L'], 'TOPIN 1L', 0, [], ['TOPIN', 'PAPAF', 'ONILI']),
+            Procedure('WIII', ['25R'], 'EGUKO 2R', 0, [], ['EGUKO', 'ONILI', 'PAPAF']),
+            Procedure('WIII', ['25R'], 'ABASA 2R', 0, [], ['ABASA', 'PAPAF', 'ELKIT']),
+            Procedure('WIII', ['25R'], 'METRO 1R', 0, [], ['METRO', 'DKI', 'ONILI']),
+        ]
+        wiii_common_tail = ['DKI', 'ONILI', 'PAPAF', 'ELKIT', 'NININ']
+        wiii_stars = [
+            Procedure('WIII', ['25R'], 'ABASA 2J', 0, [], ['ABASA'] + wiii_common_tail),
+            Procedure('WIII', ['25R'], 'EGUKO 2J', 0, [], ['EGUKO'] + wiii_common_tail),
+            Procedure('WIII', ['25R'], 'IKILO 2J', 0, [], ['IKILO'] + wiii_common_tail),
+            Procedure('WIII', ['25R'], 'TASIA 2J', 0, [], ['TASIA'] + wiii_common_tail),
+            Procedure('WIII', ['25R'], 'MESAM 2J', 0, [], ['MESAM'] + wiii_common_tail),
+            Procedure('WIII', ['25L'], 'ABASA 2K', 0, [], ['ABASA'] + wiii_common_tail),
+            Procedure('WIII', ['25L'], 'EGUKO 2K', 0, [], ['EGUKO'] + wiii_common_tail),
+            Procedure('WIII', ['25L'], 'IKILO 2K', 0, [], ['IKILO'] + wiii_common_tail),
         ]
 
-        # STARs with common tail segment (DKI/ONILI/PAPAF/ELKIT/NININ)
-        # — the pattern that makes naive overlap matching fail
-        common_tail = ['DKI', 'ONILI', 'PAPAF', 'ELKIT', 'NININ']
-        stars = [
-            Procedure('WIII', ['25R'], 'ABASA 2J', 0, [],
-                      ['ABASA'] + common_tail),
-            Procedure('WIII', ['25R'], 'EGUKO 2J', 0, [],
-                      ['EGUKO'] + common_tail),
-            Procedure('WIII', ['25R'], 'IKILO 2J', 0, [],
-                      ['IKILO'] + common_tail),
-            Procedure('WIII', ['25R'], 'TASIA 2J', 0, [],
-                      ['TASIA'] + common_tail),
-            Procedure('WIII', ['25R'], 'MESAM 2J', 0, [],
-                      ['MESAM'] + common_tail),
-            Procedure('WIII', ['25L'], 'ABASA 2K', 0, [],
-                      ['ABASA'] + common_tail),
-            Procedure('WIII', ['25L'], 'EGUKO 2K', 0, [],
-                      ['EGUKO'] + common_tail),
-            Procedure('WIII', ['25L'], 'IKILO 2K', 0, [],
-                      ['IKILO'] + common_tail),
+        # ── WADY (Selaparang / Lombok, now closed but used as demo) ────
+        wady_sids = [
+            Procedure('WADY', ['07'], 'LUBOK 1A', 0, [], ['LUBOK', 'ATLAN', 'OMPON']),
+            Procedure('WADY', ['07'], 'SATUS 1A', 0, [], ['SATUS', 'OMPON', 'SALIP']),
+            Procedure('WADY', ['25'], 'LUBOK 1B', 0, [], ['LUBOK', 'ATLAN', 'OMPON']),
+            Procedure('WADY', ['25'], 'SATUS 1B', 0, [], ['SATUS', 'OMPON', 'SALIP']),
+        ]
+        wady_stars = [
+            Procedure('WADY', ['07'], 'TOGAM 1A', 0, [], ['TOGAM', 'ATLAN', 'OMPON']),
+            Procedure('WADY', ['07'], 'MESOP 1A', 0, [], ['MESOP', 'OMPON', 'SALIP']),
+            Procedure('WADY', ['25'], 'TOGAM 1B', 0, [], ['TOGAM', 'ATLAN', 'OMPON']),
+            Procedure('WADY', ['25'], 'MESOP 1B', 0, [], ['MESOP', 'OMPON', 'SALIP']),
         ]
 
-        return {'WIII': {'sids': sids, 'stars': stars}}
+        # ── WADD (Ngurah Rai, Bali) ─────────────────────────────────────
+        wadd_sids = [
+            Procedure('WADD', ['09'], 'VINAM 3A', 0, [], ['VINAM', 'TOGAM', 'L517']),
+            Procedure('WADD', ['09'], 'IDOSI 2A', 0, [], ['IDOSI', 'TOGAM', 'B480']),
+            Procedure('WADD', ['09'], 'LUBOK 1D', 0, [], ['LUBOK', 'TOGAM', 'B462']),
+            Procedure('WADD', ['09'], 'BLI 1A', 0, [], ['BLI', 'TOGAM']),
+            Procedure('WADD', ['09'], 'DIOLA 1A', 0, [], ['DIOLA', 'TOGAM']),
+            Procedure('WADD', ['27'], 'VINAM 3B', 0, [], ['VINAM', 'TOGAM', 'L517']),
+            Procedure('WADD', ['27'], 'IDOSI 2B', 0, [], ['IDOSI', 'TOGAM', 'B480']),
+            Procedure('WADD', ['27'], 'LUBOK 1C', 0, [], ['LUBOK', 'TOGAM', 'B462']),
+        ]
+        wadd_stars = [
+            Procedure('WADD', ['09'], 'TOGAM 2A', 0, [], ['TOGAM', 'L517', 'EGUKO']),
+            Procedure('WADD', ['09'], 'RUTIN 1A', 0, [], ['RUTIN', 'B347', 'TOGAM']),
+            Procedure('WADD', ['09'], 'BLI 1B', 0, [], ['BLI', 'TOGAM']),
+            Procedure('WADD', ['09'], 'DIOLA 1B', 0, [], ['DIOLA', 'TOGAM']),
+            Procedure('WADD', ['27'], 'TOGAM 2B', 0, [], ['TOGAM', 'L517', 'EGUKO']),
+            Procedure('WADD', ['27'], 'RUTIN 1B', 0, [], ['RUTIN', 'B347', 'TOGAM']),
+            Procedure('WADD', ['27'], 'LIMLA 1A', 0, [], ['LIMLA', 'A464', 'TOGAM']),
+        ]
+
+        # ── WADL (Lombok Praya International) ──────────────────────────
+        wadl_sids = [
+            Procedure('WADL', ['14'], 'OMPON 1A', 0, [], ['OMPON', 'SALIP', 'B462']),
+            Procedure('WADL', ['14'], 'ATLAN 1A', 0, [], ['ATLAN', 'OMPON', 'SALIP']),
+            Procedure('WADL', ['32'], 'OMPON 1B', 0, [], ['OMPON', 'SALIP', 'B462']),
+            Procedure('WADL', ['32'], 'ATLAN 1B', 0, [], ['ATLAN', 'OMPON', 'SALIP']),
+        ]
+        wadl_stars = [
+            Procedure('WADL', ['14'], 'SALIP 1A', 0, [], ['SALIP', 'OMPON', 'ATLAN']),
+            Procedure('WADL', ['14'], 'TOGAM 1C', 0, [], ['TOGAM', 'B462', 'OMPON']),
+            Procedure('WADL', ['32'], 'SALIP 1B', 0, [], ['SALIP', 'OMPON', 'ATLAN']),
+            Procedure('WADL', ['32'], 'TOGAM 1D', 0, [], ['TOGAM', 'B462', 'OMPON']),
+        ]
+
+        return {
+            'WIII': {'sids': wiii_sids, 'stars': wiii_stars},
+            'WADY': {'sids': wady_sids, 'stars': wady_stars},
+            'WADD': {'sids': wadd_sids, 'stars': wadd_stars},
+            'WADL': {'sids': wadl_sids, 'stars': wadl_stars},
+        }
 
     def _build_demo_runway_config(self) -> Dict[str, Dict[str, List[str]]]:
+        """Multi-aerodrome runway config — each with potentially multiple active runways."""
         return {
-            'WIII': {'dep_rwys': ['25L'], 'arr_rwys': ['25R']},
+            'WIII': {'dep_rwys': ['25L', '25R'], 'arr_rwys': ['25R', '25L']},
+            'WADY': {'dep_rwys': ['25'],          'arr_rwys': ['07']},
+            'WADD': {'dep_rwys': ['09', '27'],    'arr_rwys': ['09']},
+            'WADL': {'dep_rwys': ['14'],          'arr_rwys': ['32']},
         }
 
     def _update_demo_traffic(self):
@@ -350,129 +391,186 @@ class DesignatorServer:
                     pass
 
     def _generate_demo_traffic(self) -> Dict[str, Dict[str, Any]]:
-        """Create initial demo traffic for WIII."""
-        sids = self.procedure_db.get('WIII', {}).get('sids', [])
-        stars = self.procedure_db.get('WIII', {}).get('stars', [])
-        dep_rwy = self.runway_config.get('WIII', {}).get('dep_rwys', ['25L'])[0]
-        arr_rwy = self.runway_config.get('WIII', {}).get('arr_rwys', ['25R'])[0]
+        """Create initial demo traffic for WIII, WADY, WADD, and WADL."""
 
-        departures = [
-            {
-                'callsign': 'GIA123',
-                'type': 'departure',
-                'departure': 'WIII',
-                'arrival': 'WMKK',
-                'route': 'EGUKO B576 ONILI PAPAF TOPIN VINAM',
-                'altitude': '1200',
-                'squawk': '2601',
-                'runway': dep_rwy,
-                'airport': 'WIII',
-            },
-            {
-                'callsign': 'BTK456',
-                'type': 'departure',
-                'departure': 'WIII',
-                'arrival': 'VHHH',
-                'route': 'ABASA PAPAF ELKIT L642 IDOSI',
-                'altitude': '850',
-                'squawk': '4512',
-                'runway': dep_rwy,
-                'airport': 'WIII',
-            },
-            {
-                'callsign': 'NAM789',
-                'type': 'departure',
-                'departure': 'WIII',
-                'arrival': 'WADD',
-                'route': 'METRO DKI ONILI UL865 VINAM',
-                'altitude': '0',
-                'squawk': '2345',
-                'runway': dep_rwy,
-                'airport': 'WIII',
-            },
-            {
-                'callsign': 'LNI012',
-                'type': 'departure',
-                'departure': 'WIII',
-                'arrival': 'WSSS',
-                'route': 'IRWAK ELKIT NININ A576 UGAMI',
-                'altitude': '2500',
-                'squawk': '3218',
-                'runway': dep_rwy,
-                'airport': 'WIII',
-            },
-        ]
+        def get_rwy(apt, kind):
+            """Helper: get first dep/arr runway for an aerodrome."""
+            key = 'dep_rwys' if kind == 'dep' else 'arr_rwys'
+            return self.runway_config.get(apt, {}).get(key, ['--'])[0]
 
-        arrivals = [
+        raw_traffic = [
+            # ── WIII departures ────────────────────────────────────────
             {
-                'callsign': 'SJY234',
-                'type': 'arrival',
-                'departure': 'WSSS',
-                'arrival': 'WIII',
-                'route': 'RUTIN B347 ABASA DKI ONILI PAPAF ELKIT NININ',
-                'altitude': '15000',
-                'squawk': '4521',
-                'runway': arr_rwy,
-                'airport': 'WIII',
+                'callsign': 'GIA123', 'type': 'departure',
+                'departure': 'WIII',  'arrival': 'WMKK',
+                'route':    'EGUKO B576 ONILI PAPAF TOPIN VINAM',
+                'altitude': '1200', 'squawk': '2601',
+                'runway': get_rwy('WIII', 'dep'), 'airport': 'WIII',
             },
             {
-                'callsign': 'CTV567',
-                'type': 'arrival',
-                'departure': 'WADD',
-                'arrival': 'WIII',
-                'route': 'TOGAM L517 EGUKO DKI ONILI PAPAF ELKIT NININ',
-                'altitude': '22000',
-                'squawk': '3456',
-                'runway': arr_rwy,
-                'airport': 'WIII',
+                'callsign': 'BTK456', 'type': 'departure',
+                'departure': 'WIII',  'arrival': 'VHHH',
+                'route':    'ABASA PAPAF ELKIT L642 IDOSI',
+                'altitude': '850',  'squawk': '4512',
+                'runway': get_rwy('WIII', 'dep'), 'airport': 'WIII',
             },
             {
-                'callsign': 'AWQ890',
-                'type': 'arrival',
-                'departure': 'WMKK',
-                'arrival': 'WIII',
-                'route': 'MESOP B586 IKILO DKI ONILI PAPAF ELKIT NININ',
-                'altitude': '18000',
-                'squawk': '5678',
-                'runway': arr_rwy,
-                'airport': 'WIII',
+                'callsign': 'NAM789', 'type': 'departure',
+                'departure': 'WIII',  'arrival': 'WADD',
+                'route':    'METRO DKI ONILI UL865 VINAM',
+                'altitude': '0',    'squawk': '2345',
+                'runway': get_rwy('WIII', 'dep'), 'airport': 'WIII',
             },
             {
-                'callsign': 'GIA345',
-                'type': 'arrival',
-                'departure': 'VTBS',
-                'arrival': 'WIII',
-                'route': 'LIMLA A464 TASIA DKI ONILI PAPAF ELKIT NININ',
-                'altitude': '35000',
-                'squawk': '6789',
-                'runway': arr_rwy,
-                'airport': 'WIII',
+                'callsign': 'LNI012', 'type': 'departure',
+                'departure': 'WIII',  'arrival': 'WSSS',
+                'route':    'IRWAK ELKIT NININ A576 UGAMI',
+                'altitude': '2500', 'squawk': '3218',
+                'runway': get_rwy('WIII', 'dep'), 'airport': 'WIII',
+            },
+            # ── WIII arrivals ──────────────────────────────────────────
+            {
+                'callsign': 'SJY234', 'type': 'arrival',
+                'departure': 'WSSS',  'arrival': 'WIII',
+                'route':    'RUTIN B347 ABASA DKI ONILI PAPAF ELKIT NININ',
+                'altitude': '15000', 'squawk': '4521',
+                'runway': get_rwy('WIII', 'arr'), 'airport': 'WIII',
+            },
+            {
+                'callsign': 'CTV567', 'type': 'arrival',
+                'departure': 'WADD',  'arrival': 'WIII',
+                'route':    'TOGAM L517 EGUKO DKI ONILI PAPAF ELKIT NININ',
+                'altitude': '22000', 'squawk': '3456',
+                'runway': get_rwy('WIII', 'arr'), 'airport': 'WIII',
+            },
+            {
+                'callsign': 'AWQ890', 'type': 'arrival',
+                'departure': 'WMKK',  'arrival': 'WIII',
+                'route':    'MESOP B586 IKILO DKI ONILI PAPAF ELKIT NININ',
+                'altitude': '18000', 'squawk': '5678',
+                'runway': get_rwy('WIII', 'arr'), 'airport': 'WIII',
+            },
+            {
+                'callsign': 'GIA345', 'type': 'arrival',
+                'departure': 'VTBS',  'arrival': 'WIII',
+                'route':    'LIMLA A464 TASIA DKI ONILI PAPAF ELKIT NININ',
+                'altitude': '35000', 'squawk': '6789',
+                'runway': get_rwy('WIII', 'arr'), 'airport': 'WIII',
+            },
+            # ── WADY departures ────────────────────────────────────────
+            {
+                'callsign': 'GIA501', 'type': 'departure',
+                'departure': 'WADY',  'arrival': 'WIII',
+                'route':    'LUBOK ATLAN OMPON L517 DKI',
+                'altitude': '0',    'squawk': '2701',
+                'runway': get_rwy('WADY', 'dep'), 'airport': 'WADY',
+            },
+            {
+                'callsign': 'LNI203', 'type': 'departure',
+                'departure': 'WADY',  'arrival': 'WSSS',
+                'route':    'SATUS OMPON SALIP B462 UGAMI',
+                'altitude': '1500', 'squawk': '3301',
+                'runway': get_rwy('WADY', 'dep'), 'airport': 'WADY',
+            },
+            # ── WADY arrivals ──────────────────────────────────────────
+            {
+                'callsign': 'BTK701', 'type': 'arrival',
+                'departure': 'WIII',  'arrival': 'WADY',
+                'route':    'METRO DKI OMPON TOGAM ATLAN',
+                'altitude': '12000', 'squawk': '4601',
+                'runway': get_rwy('WADY', 'arr'), 'airport': 'WADY',
+            },
+            {
+                'callsign': 'SJY402', 'type': 'arrival',
+                'departure': 'WADD',  'arrival': 'WADY',
+                'route':    'TOGAM B462 OMPON ATLAN MESOP',
+                'altitude': '8000',  'squawk': '5401',
+                'runway': get_rwy('WADY', 'arr'), 'airport': 'WADY',
+            },
+            # ── WADD departures ────────────────────────────────────────
+            {
+                'callsign': 'GIA611', 'type': 'departure',
+                'departure': 'WADD',  'arrival': 'WIII',
+                'route':    'VINAM TOGAM L517 EGUKO DKI',
+                'altitude': '2000', 'squawk': '2801',
+                'runway': get_rwy('WADD', 'dep'), 'airport': 'WADD',
+            },
+            {
+                'callsign': 'CTV312', 'type': 'departure',
+                'departure': 'WADD',  'arrival': 'VHHH',
+                'route':    'IDOSI TOGAM B480 UGAMI',
+                'altitude': '3500', 'squawk': '3811',
+                'runway': get_rwy('WADD', 'dep'), 'airport': 'WADD',
+            },
+            {
+                'callsign': 'NAM550', 'type': 'departure',
+                'departure': 'WADD',  'arrival': 'WSSS',
+                'route':    'LUBOK TOGAM B462 UGAMI',
+                'altitude': '0',    'squawk': '2811',
+                'runway': get_rwy('WADD', 'dep'), 'airport': 'WADD',
+            },
+            # ── WADD arrivals ──────────────────────────────────────────
+            {
+                'callsign': 'AWQ210', 'type': 'arrival',
+                'departure': 'WSSS',  'arrival': 'WADD',
+                'route':    'RUTIN B347 TOGAM L517 EGUKO',
+                'altitude': '28000', 'squawk': '4811',
+                'runway': get_rwy('WADD', 'arr'), 'airport': 'WADD',
+            },
+            {
+                'callsign': 'GIA712', 'type': 'arrival',
+                'departure': 'VTBS',  'arrival': 'WADD',
+                'route':    'LIMLA A464 TOGAM L517',
+                'altitude': '32000', 'squawk': '5811',
+                'runway': get_rwy('WADD', 'arr'), 'airport': 'WADD',
+            },
+            # ── WADL departures ────────────────────────────────────────
+            {
+                'callsign': 'LNI450', 'type': 'departure',
+                'departure': 'WADL',  'arrival': 'WIII',
+                'route':    'OMPON SALIP B462 DKI ONILI',
+                'altitude': '0',    'squawk': '2901',
+                'runway': get_rwy('WADL', 'dep'), 'airport': 'WADL',
+            },
+            {
+                'callsign': 'BTK820', 'type': 'departure',
+                'departure': 'WADL',  'arrival': 'WADD',
+                'route':    'ATLAN OMPON TOGAM B462',
+                'altitude': '1000', 'squawk': '3901',
+                'runway': get_rwy('WADL', 'dep'), 'airport': 'WADL',
+            },
+            # ── WADL arrivals ──────────────────────────────────────────
+            {
+                'callsign': 'CTV650', 'type': 'arrival',
+                'departure': 'WADD',  'arrival': 'WADL',
+                'route':    'TOGAM B462 OMPON SALIP ATLAN',
+                'altitude': '10000', 'squawk': '4901',
+                'runway': get_rwy('WADL', 'arr'), 'airport': 'WADL',
             },
         ]
 
         traffic = {}
-        for ac in departures + arrivals:
-            cs = ac['callsign']
-            route_fixes = parse_route_string(ac['route'])
+        for ac in raw_traffic:
+            cs  = ac['callsign']
+            apt = ac['airport']
+            procs = self.procedure_db.get(apt, {})
 
-            # Pick the right procedure list
             if ac['type'] == 'departure':
-                procs = sids
+                procedure_list = procs.get('sids', [])
             else:
-                procs = stars
+                procedure_list = procs.get('stars', [])
 
-            suggestions = match_procedures(route_fixes, ac['runway'], procs)
-
-            all_procs = [
-                p.name for p in procs
+            route_fixes = parse_route_string(ac['route'])
+            suggestions = match_procedures(route_fixes, ac['runway'], procedure_list)
+            all_procs   = [
+                p.name for p in procedure_list
                 if not ac['runway'] or not p.runways or ac['runway'] in p.runways
             ]
 
-            ac['assigned'] = None
+            ac['assigned']         = None
             ac['current_waypoint'] = ''
-            ac['suggestions'] = suggestions[:5]
-            ac['all_procedures'] = all_procs
-
+            ac['suggestions']      = suggestions[:5]
+            ac['all_procedures']   = all_procs
             traffic[cs] = ac
 
         return traffic

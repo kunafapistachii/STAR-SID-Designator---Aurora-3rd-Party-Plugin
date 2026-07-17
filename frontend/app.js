@@ -279,24 +279,49 @@
         hdr.textContent = label;
         section.appendChild(hdr);
 
+        // Group aircraft by controlled aerodrome, sorted by ICAO then callsign
+        const byAirport = {};
         for (const ac of acList) {
-            const isSelected = ac.callsign === selectedCallsign;
+            const apt = ac.airport || 'UNKN';
+            if (!byAirport[apt]) byAirport[apt] = [];
+            byAirport[apt].push(ac);
+        }
+        const sortedApts = Object.keys(byAirport).sort();
+        const multiAirport = sortedApts.length > 1;
 
-            const item = document.createElement('div');
-            item.className = `tl-item${isSelected ? ' selected' : ''}`;
-            item.dataset.callsign = ac.callsign;
+        for (const apt of sortedApts) {
+            // Only render the airport sub-header when there are multiple aerodromes
+            if (multiAirport) {
+                const aptHdr = document.createElement('div');
+                aptHdr.className = 'tl-apt-header';
+                aptHdr.innerHTML = `
+                    <span class="tl-apt-icao">${escapeHtml(apt)}</span>
+                    <span class="tl-apt-count">${byAirport[apt].length}</span>
+                `;
+                section.appendChild(aptHdr);
+            }
 
-            item.innerHTML = `
-                <span class="tl-dot ${dotClass}"></span>
-                <span class="tl-callsign">${escapeHtml(ac.callsign)}</span>
-                <span class="tl-airport">${escapeHtml(ac.airport || '')}</span>
-                ${ac.assigned
-                    ? `<span class="tl-assigned-tag">${escapeHtml(ac.assigned)}</span>`
-                    : ''}
-            `;
+            for (const ac of byAirport[apt]) {
+                const isSelected = ac.callsign === selectedCallsign;
 
-            item.addEventListener('click', () => selectAircraft(ac.callsign));
-            section.appendChild(item);
+                const item = document.createElement('div');
+                item.className = `tl-item${isSelected ? ' selected' : ''}${multiAirport ? ' indented' : ''}`;
+                item.dataset.callsign = ac.callsign;
+
+                item.innerHTML = `
+                    <span class="tl-dot ${dotClass}"></span>
+                    <span class="tl-callsign">${escapeHtml(ac.callsign)}</span>
+                    ${!multiAirport
+                        ? `<span class="tl-airport">${escapeHtml(apt)}</span>`
+                        : ''}
+                    ${ac.assigned
+                        ? `<span class="tl-assigned-tag">${escapeHtml(ac.assigned)}</span>`
+                        : ''}
+                `;
+
+                item.addEventListener('click', () => selectAircraft(ac.callsign));
+                section.appendChild(item);
+            }
         }
 
         trafficList.appendChild(section);
@@ -599,7 +624,48 @@
         sendSetPath(manualPath);
     });
 
+    // ─── Resizable Panel ───────────────────────────────────────────────
+
+    function initResizablePanel() {
+        const divider = document.querySelector('.panel-divider');
+        const panel   = document.getElementById('traffic-list-panel');
+
+        const MIN_W     = 160;
+        const MAX_W     = 520;
+        const DEFAULT_W = 260;
+
+        let dragging  = false;
+        let startX    = 0;
+        let startW    = 0;
+
+        divider.addEventListener('mousedown', (e) => {
+            dragging = true;
+            startX   = e.clientX;
+            startW   = panel.offsetWidth;
+            document.body.classList.add('resizing');
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!dragging) return;
+            const newW = Math.min(MAX_W, Math.max(MIN_W, startW + (e.clientX - startX)));
+            panel.style.width = `${newW}px`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!dragging) return;
+            dragging = false;
+            document.body.classList.remove('resizing');
+        });
+
+        // Double-click resets to default
+        divider.addEventListener('dblclick', () => {
+            panel.style.width = `${DEFAULT_W}px`;
+        });
+    }
+
     // ─── Initialize ────────────────────────────────────────────────────
 
+    initResizablePanel();
     connect();
 })();

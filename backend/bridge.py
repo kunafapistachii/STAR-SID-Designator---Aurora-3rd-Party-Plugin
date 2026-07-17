@@ -122,15 +122,16 @@ class AuroraBridge:
             )
             return None
 
-        # NOTE: Field indices below are best-effort. The context doc only
-        # confirms field 14 = Route. Others need field-testing.
+        # Corrected verified indices from raw #FP response:
+        # fields[0]: command prefix, fields[1]: callsign, fields[2]: dep, fields[3]: arr
+        # fields[6]: aircraft_type, fields[11]: cruise_alt, fields[15]: route
         return {
             "callsign": callsign,
-            "aircraft_type": fields[2],
-            "departure": fields[5],
-            "arrival": fields[7],
-            "cruise_alt": fields[8],
-            "route": fields[14],
+            "aircraft_type": fields[6] if len(fields) > 6 else "",
+            "departure": fields[2] if len(fields) > 2 else "",
+            "arrival": fields[3] if len(fields) > 3 else "",
+            "cruise_alt": fields[11] if len(fields) > 11 else "",
+            "route": fields[15] if len(fields) > 15 else "",
         }
 
     async def get_runway_config(self) -> Dict[str, Dict[str, List[str]]]:

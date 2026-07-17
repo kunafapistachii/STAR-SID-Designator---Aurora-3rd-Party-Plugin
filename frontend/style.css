@@ -141,10 +141,12 @@ body {
 
 .runway-info {
     display: flex;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
     font-size: 11px;
     font-family: var(--font-mono);
     color: var(--text-muted);
+    max-width: 560px;
 }
 
 .runway-info .rwy-item {
@@ -318,6 +320,39 @@ body {
     position: relative;
 }
 
+/* Indented items under an airport sub-header */
+.tl-item.indented {
+    padding-left: 22px;
+}
+
+/* Airport sub-header (multi-aerodrome) */
+.tl-apt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 14px 3px;
+    margin-top: 4px;
+}
+
+.tl-apt-icao {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.tl-apt-count {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+}
+
 .tl-item:hover {
     background: rgba(255, 255, 255, 0.04);
 }
@@ -406,24 +441,59 @@ body {
 /* ─── Panel Divider ────────────────────────────────────────────────── */
 
 .panel-divider {
-    width: 1px;
+    width: 6px;
+    flex-shrink: 0;
     background: var(--border);
     position: relative;
-    flex-shrink: 0;
+    cursor: col-resize;
+    transition: background var(--transition-fast);
+    user-select: none;
 }
 
+.panel-divider:hover,
+body.resizing .panel-divider {
+    background: rgba(0, 212, 255, 0.15);
+}
+
+/* Subtle grip dots in the center */
 .panel-divider::before {
     content: '';
     position: absolute;
     top: 0;
-    left: -1px;
-    width: 3px;
+    left: 1px;
+    width: 4px;
     height: 100%;
     background: linear-gradient(180deg,
         transparent 0%,
         var(--accent-dim) 20%,
         var(--accent-dim) 80%,
         transparent 100%);
+    pointer-events: none;
+}
+
+.panel-divider::after {
+    content: '⋮';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+    color: var(--text-dim);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    pointer-events: none;
+    line-height: 1;
+}
+
+.panel-divider:hover::after,
+body.resizing .panel-divider::after {
+    opacity: 1;
+}
+
+/* Prevent text selection while dragging */
+body.resizing * {
+    cursor: col-resize !important;
+    user-select: none !important;
 }
 
 /* ─── Designator Panel (Right) ─────────────────────────────────────── */
