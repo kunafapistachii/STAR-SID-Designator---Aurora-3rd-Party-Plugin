@@ -1,14 +1,14 @@
 /* ═══════════════════════════════════════════════════════════════════
-   STAR/SID Designator — Aviation Dark Theme
-   
+   STAR/SID Designator — Aviation Dark Theme (v2 Controller Panel)
+
    Color System:
    - Background:  #0a0e1a (deep navy-black)
    - Surface:     #111827 (elevated panels)
    - Card:        #1a2035 (card backgrounds)
-   - Accent:      #00ff88 (radar green — primary actions)
-   - Cyan:        #00d4ff (info / departure accent)
-   - Amber:       #f59e0b (warnings / assigning state)
-   - Red:         #ef4444 (errors / danger)
+   - Accent:      #00ff88 (radar green — STAR / arrival / best-match)
+   - Cyan:        #00d4ff (info / SID / departure accent)
+   - Amber:       #f59e0b (warnings / overfly)
+   - Red:         #ef4444 (errors / UNASSIGN)
    - Text:        #e2e8f0 (primary text)
    - Text Muted:  #64748b (secondary text)
    ═══════════════════════════════════════════════════════════════════ */
@@ -24,40 +24,41 @@
 }
 
 :root {
-    --bg-base: #0a0e1a;
-    --bg-surface: #111827;
-    --bg-card: #1a2035;
-    --bg-card-hover: #1e2642;
-    --bg-card-assigned: #0f2a1f;
+    --bg-base:          #0a0e1a;
+    --bg-surface:       #111827;
+    --bg-card:          #1a2035;
+    --bg-card-hover:    #1e2642;
 
-    --accent: #00ff88;
-    --accent-dim: rgba(0, 255, 136, 0.15);
-    --accent-glow: rgba(0, 255, 136, 0.3);
-    --cyan: #00d4ff;
-    --cyan-dim: rgba(0, 212, 255, 0.15);
-    --amber: #f59e0b;
-    --amber-dim: rgba(245, 158, 11, 0.15);
-    --red: #ef4444;
-    --red-dim: rgba(239, 68, 68, 0.15);
+    --accent:           #00ff88;
+    --accent-dim:       rgba(0, 255, 136, 0.12);
+    --accent-glow:      rgba(0, 255, 136, 0.3);
+    --cyan:             #00d4ff;
+    --cyan-dim:         rgba(0, 212, 255, 0.12);
+    --cyan-glow:        rgba(0, 212, 255, 0.3);
+    --amber:            #f59e0b;
+    --amber-dim:        rgba(245, 158, 11, 0.15);
+    --red:              #ef4444;
+    --red-dim:          rgba(239, 68, 68, 0.15);
 
-    --text: #e2e8f0;
-    --text-muted: #64748b;
-    --text-dim: #475569;
+    --text:             #e2e8f0;
+    --text-muted:       #64748b;
+    --text-dim:         #475569;
 
-    --border: rgba(255, 255, 255, 0.06);
-    --border-accent: rgba(0, 255, 136, 0.2);
-    --border-cyan: rgba(0, 212, 255, 0.2);
+    --border:           rgba(255, 255, 255, 0.06);
+    --border-accent:    rgba(0, 255, 136, 0.25);
+    --border-cyan:      rgba(0, 212, 255, 0.25);
+    --border-amber:     rgba(245, 158, 11, 0.25);
 
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 14px;
+    --radius-sm:        6px;
+    --radius-md:        10px;
+    --radius-lg:        14px;
 
-    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
-    --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --shadow-card:      0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+    --shadow-elevated:  0 8px 32px rgba(0, 0, 0, 0.4);
 
-    --transition-fast: 150ms ease;
+    --transition-fast:   150ms ease;
     --transition-normal: 250ms ease;
-    --transition-slow: 400ms ease;
+    --transition-slow:   400ms ease;
 
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', 'Consolas', monospace;
@@ -79,12 +80,13 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 56px;
+    height: 52px;
     padding: 0 20px;
     background: var(--bg-surface);
     border-bottom: 1px solid var(--border);
     backdrop-filter: blur(12px);
     z-index: 100;
+    flex-shrink: 0;
 }
 
 .header-left {
@@ -100,12 +102,12 @@ body {
 }
 
 .logo-icon {
-    font-size: 22px;
+    font-size: 20px;
     filter: drop-shadow(0 0 6px var(--accent-glow));
 }
 
 .logo h1 {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     letter-spacing: 0.3px;
     color: var(--text);
@@ -123,7 +125,7 @@ body {
 .badge-demo {
     background: var(--amber-dim);
     color: var(--amber);
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    border: 1px solid var(--border-amber);
 }
 
 .badge-live {
@@ -139,8 +141,8 @@ body {
 
 .runway-info {
     display: flex;
-    gap: 16px;
-    font-size: 12px;
+    gap: 12px;
+    font-size: 11px;
     font-family: var(--font-mono);
     color: var(--text-muted);
 }
@@ -149,24 +151,15 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
+    padding: 3px 10px;
     background: rgba(255, 255, 255, 0.03);
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
 }
 
-.runway-info .rwy-icao {
-    color: var(--text);
-    font-weight: 600;
-}
-
-.runway-info .rwy-dep {
-    color: var(--cyan);
-}
-
-.runway-info .rwy-arr {
-    color: var(--accent);
-}
+.runway-info .rwy-icao { color: var(--text); font-weight: 600; }
+.runway-info .rwy-dep  { color: var(--cyan); }
+.runway-info .rwy-arr  { color: var(--accent); }
 
 .header-right {
     display: flex;
@@ -179,7 +172,7 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
 }
 
@@ -195,40 +188,30 @@ body {
     box-shadow: 0 0 8px var(--accent-glow);
     animation: pulse 2s ease-in-out infinite;
 }
+.status-indicator.connected .status-text { color: var(--accent); }
 
-.status-indicator.connected .status-text {
-    color: var(--accent);
-}
-
-.status-indicator.disconnected .status-dot {
+.status-indicator.offline .status-dot {
     background: var(--red);
     box-shadow: 0 0 8px var(--red-dim);
 }
-
-.status-indicator.disconnected .status-text {
-    color: var(--red);
-}
+.status-indicator.offline .status-text { color: var(--red); }
 
 .status-indicator.connecting .status-dot {
     background: var(--amber);
     box-shadow: 0 0 8px var(--amber-dim);
     animation: pulse 1s ease-in-out infinite;
 }
+.status-indicator.connecting .status-text { color: var(--amber); }
 
-.status-indicator.connecting .status-text {
-    color: var(--amber);
+.status-indicator.demo .status-dot {
+    background: var(--amber);
+    box-shadow: 0 0 8px var(--amber-dim);
 }
+.status-indicator.demo .status-text { color: var(--amber); }
 
 @keyframes pulse {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.4;
-    }
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
 }
 
 .traffic-count {
@@ -260,21 +243,173 @@ body {
 
 #app-main {
     display: flex;
-    height: calc(100vh - 56px);
+    height: calc(100vh - 52px);
     overflow: hidden;
 }
 
-.traffic-panel {
-    flex: 1;
+/* ─── Traffic List Panel (Left) ────────────────────────────────────── */
+
+#traffic-list-panel {
+    width: 260px;
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border);
     overflow: hidden;
 }
+
+.tl-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.02);
+    flex-shrink: 0;
+}
+
+.tl-header-icon {
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+.tl-list {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.tl-list::-webkit-scrollbar { width: 4px; }
+.tl-list::-webkit-scrollbar-track { background: transparent; }
+.tl-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 2px;
+}
+
+/* Traffic Section */
+.tl-section {
+    margin-bottom: 4px;
+}
+
+.tl-section-header {
+    padding: 8px 14px 4px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+/* Traffic Item */
+.tl-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+    position: relative;
+}
+
+.tl-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.tl-item.selected {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* Selected border color by type via parent section context — use JS-set class */
+.tl-item.selected.dep,
+#traffic-list .tl-section:has(.tl-item.dep.selected) .tl-item.selected {
+    border-left-color: var(--cyan);
+}
+.tl-item.selected.arr,
+#traffic-list .tl-section:has(.tl-item.arr.selected) .tl-item.selected {
+    border-left-color: var(--accent);
+}
+.tl-item.selected.ovr {
+    border-left-color: var(--amber);
+}
+
+/* Traffic dot indicator */
+.tl-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.tl-dot.dep { background: var(--cyan);  box-shadow: 0 0 4px var(--cyan-glow); }
+.tl-dot.arr { background: var(--accent); box-shadow: 0 0 4px var(--accent-glow); }
+.tl-dot.ovr { background: var(--text-dim); }
+
+.tl-callsign {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tl-airport {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+}
+
+.tl-assigned-tag {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid var(--border-accent);
+    border-radius: 3px;
+    padding: 1px 5px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 72px;
+}
+
+/* Empty state */
+.tl-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    gap: 10px;
+    opacity: 0.3;
+}
+
+.tl-empty-icon { font-size: 28px; }
+
+.tl-empty span:last-child {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* ─── Panel Divider ────────────────────────────────────────────────── */
 
 .panel-divider {
     width: 1px;
     background: var(--border);
     position: relative;
+    flex-shrink: 0;
 }
 
 .panel-divider::before {
@@ -285,255 +420,133 @@ body {
     width: 3px;
     height: 100%;
     background: linear-gradient(180deg,
-            transparent 0%,
-            var(--accent-dim) 20%,
-            var(--accent-dim) 80%,
-            transparent 100%);
+        transparent 0%,
+        var(--accent-dim) 20%,
+        var(--accent-dim) 80%,
+        transparent 100%);
 }
 
-/* Panel Header */
-.panel-header {
+/* ─── Designator Panel (Right) ─────────────────────────────────────── */
+
+#designator-panel {
+    flex: 1;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 16px;
+    flex-direction: column;
+    gap: 0;
+    overflow: hidden;
+    min-width: 0;
+}
+
+/* ── Top row: Assigned Proc + Mode Toggle ── */
+.designator-top {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    padding: 16px 20px 14px;
     background: var(--bg-surface);
     border-bottom: 1px solid var(--border);
-}
-
-.panel-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.panel-icon {
-    font-size: 18px;
-    font-weight: 700;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-sm);
-}
-
-.dep-icon {
-    background: var(--cyan-dim);
-    color: var(--cyan);
-    border: 1px solid var(--border-cyan);
-}
-
-.arr-icon {
-    background: var(--accent-dim);
-    color: var(--accent);
-    border: 1px solid var(--border-accent);
-}
-
-.panel-title h2 {
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: var(--text);
-}
-
-.panel-label {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-muted);
-    background: rgba(255, 255, 255, 0.04);
-    padding: 2px 8px;
-    border-radius: 3px;
-    border: 1px solid var(--border);
-}
-
-.panel-search {
     flex-shrink: 0;
 }
 
-.search-input {
-    width: 180px;
-    padding: 6px 12px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--text);
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    outline: none;
-    transition: border-color var(--transition-fast), background var(--transition-fast);
+.assigned-proc-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
 }
 
-.search-input:focus {
-    border-color: var(--accent);
-    background: rgba(0, 255, 136, 0.03);
-    box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.06);
-}
-
-.search-input::placeholder {
+.assigned-proc-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
     color: var(--text-dim);
 }
 
-/* ─── Aircraft List ────────────────────────────────────────────────── */
-
-.aircraft-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-/* Custom scrollbar */
-.aircraft-list::-webkit-scrollbar {
-    width: 6px;
-}
-
-.aircraft-list::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.aircraft-list::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
-}
-
-.aircraft-list::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-/* Empty State */
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    opacity: 0.3;
-    gap: 12px;
-}
-
-.empty-icon {
-    font-size: 48px;
-}
-
-.empty-state p {
-    font-size: 14px;
-    color: var(--text-muted);
-}
-
-/* Airport Group */
-.airport-group {
-    margin-bottom: 4px;
-}
-
-.airport-group-header {
+.assigned-proc-display {
+    height: 36px;
+    padding: 0 12px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    font-size: 11px;
-    font-weight: 600;
     font-family: var(--font-mono);
-    color: var(--text-muted);
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 8px;
-}
-
-.airport-group-header .rwy-tag {
-    font-size: 10px;
-    padding: 1px 6px;
-    border-radius: 3px;
-    background: rgba(255, 255, 255, 0.04);
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
-}
-
-/* ─── Aircraft Card ────────────────────────────────────────────────── */
-
-.aircraft-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 14px 16px;
+    background: rgba(0, 0, 0, 0.25);
     transition: all var(--transition-normal);
-    animation: cardEnter 0.3s ease-out;
-    position: relative;
-    overflow: hidden;
+    color: var(--text-muted);
 }
 
-.aircraft-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 3px;
-    height: 100%;
-    border-radius: 3px 0 0 3px;
-    transition: background var(--transition-normal);
+.assigned-proc-display.has-value {
+    color: var(--accent);
+    border-color: var(--border-accent);
+    background: var(--accent-dim);
+    box-shadow: 0 0 12px rgba(0, 255, 136, 0.08);
 }
 
-.aircraft-card.departure-card::before {
-    background: var(--cyan);
+/* Mode Toggle */
+.mode-toggle {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
 }
 
-.aircraft-card.arrival-card::before {
-    background: var(--accent);
+.mode-btn {
+    padding: 0 20px;
+    height: 36px;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
 }
 
-.aircraft-card:hover {
-    background: var(--bg-card-hover);
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: var(--shadow-card);
-    transform: translateY(-1px);
+.mode-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text);
 }
 
-.aircraft-card.assigned {
-    background: var(--bg-card-assigned);
-    border-color: rgba(0, 255, 136, 0.15);
+.mode-btn.sid.active {
+    background: var(--cyan-dim);
+    color: var(--cyan);
+    border-color: var(--border-cyan);
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.15);
 }
 
-.aircraft-card.assigning {
-    border-color: rgba(245, 158, 11, 0.4);
-    animation: assignPulse 1.5s ease-in-out infinite;
+.mode-btn.star.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-color: var(--border-accent);
+    box-shadow: 0 0 12px rgba(0, 255, 136, 0.15);
 }
 
-@keyframes cardEnter {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes assignPulse {
-
-    0%,
-    100% {
-        box-shadow: 0 0 0 0 var(--amber-dim);
-    }
-
-    50% {
-        box-shadow: 0 0 0 4px var(--amber-dim);
-    }
-}
-
-/* Card Row 1: Callsign + Altitude + Squawk */
-.card-row-1 {
+/* ── Aircraft Info Bar ── */
+.ac-info-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
+    gap: 12px;
+    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.15);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    min-height: 44px;
+    flex-wrap: wrap;
 }
 
-.callsign {
+.ac-info-placeholder {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-style: italic;
+}
+
+.ac-callsign {
     font-family: var(--font-mono);
     font-size: 16px;
     font-weight: 700;
@@ -541,137 +554,187 @@ body {
     letter-spacing: 0.5px;
 }
 
-.card-meta {
+.ac-type-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 4px;
+}
+
+.ac-type-badge.dep {
+    background: var(--cyan-dim);
+    color: var(--cyan);
+    border: 1px solid var(--border-cyan);
+}
+
+.ac-type-badge.arr {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--border-accent);
+}
+
+.ac-type-badge.ovr {
+    background: var(--amber-dim);
+    color: var(--amber);
+    border: 1px solid var(--border-amber);
+}
+
+.ac-route-mini {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 5px;
     font-family: var(--font-mono);
     font-size: 12px;
-}
-
-.altitude {
-    color: var(--text);
-    font-weight: 500;
-}
-
-.squawk {
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.squawk-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 1px;
-    background: var(--amber);
-    display: inline-block;
-}
-
-/* Card Row 2: Airports + Runway */
-.card-row-2 {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 6px;
-}
-
-.airports {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-muted);
-}
-
-.airports .dep-code {
-    color: var(--cyan);
     font-weight: 600;
 }
 
-.airports .arr-code {
-    color: var(--accent);
-    font-weight: 600;
-}
+.mini-dep  { color: var(--cyan); }
+.mini-arr  { color: var(--accent); }
+.mini-arrow { color: var(--text-dim); }
 
-.airports .arrow {
-    color: var(--text-dim);
-    margin: 0 6px;
-}
-
-.runway-tag {
-    font-size: 11px;
+.ac-alt {
     font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.ac-rwy {
+    font-family: var(--font-mono);
+    font-size: 11px;
     font-weight: 600;
+    color: var(--text-dim);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
     padding: 2px 8px;
     border-radius: 3px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
 }
 
-/* Card Row 3: Route */
-.card-row-3 {
-    margin-bottom: 10px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    line-height: 1.5;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding: 4px 8px;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: var(--radius-sm);
-}
-
-/* Card Row 4: Procedure Select + Assign */
-.card-row-4 {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.procedure-select {
+/* ── Procedure Grid ── */
+.proc-grid {
     flex: 1;
-    padding: 8px 12px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 20px;
+    overflow-y: auto;
+    align-content: start;
+}
+
+.proc-grid::-webkit-scrollbar { width: 4px; }
+.proc-grid::-webkit-scrollbar-track { background: transparent; }
+.proc-grid::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 2px;
+}
+
+/* Procedure Button */
+.proc-btn {
+    padding: 18px 10px;
     font-family: var(--font-mono);
     font-size: 13px;
-    font-weight: 500;
-    color: var(--text);
-    background: rgba(0, 0, 0, 0.3);
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    outline: none;
+    border-radius: var(--radius-md);
     cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    padding-right: 30px;
-    transition: border-color var(--transition-fast);
+    transition: all var(--transition-fast);
+    text-align: center;
+    letter-spacing: 0.5px;
+    animation: btnEnter 0.2s ease-out;
 }
 
-.procedure-select:focus {
-    border-color: var(--accent);
+@keyframes btnEnter {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
 }
 
-.procedure-select option {
-    background: #1a2035;
+.proc-btn:hover {
+    background: var(--bg-card-hover);
+    border-color: rgba(255, 255, 255, 0.12);
     color: var(--text);
-    padding: 6px;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card);
 }
 
-.procedure-select option.suggested {
+/* Suggested (has route overlap) */
+.proc-btn.suggested {
+    border-color: rgba(0, 212, 255, 0.2);
+    color: var(--text);
+}
+
+/* Best match (core fix match) */
+.proc-btn.best-match {
+    border-color: var(--border-cyan);
+    color: var(--cyan);
+    background: rgba(0, 212, 255, 0.05);
+}
+
+/* Selected — SID mode */
+.proc-grid.sid-mode .proc-btn.selected {
+    background: var(--cyan-dim);
+    border-color: var(--cyan);
+    color: var(--cyan);
+    box-shadow: 0 0 16px rgba(0, 212, 255, 0.2), inset 0 0 8px rgba(0, 212, 255, 0.05);
+    transform: translateY(-2px);
+}
+
+/* Selected — STAR mode */
+.proc-grid.star-mode .proc-btn.selected {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 16px rgba(0, 255, 136, 0.2), inset 0 0 8px rgba(0, 255, 136, 0.05);
+    transform: translateY(-2px);
+}
+
+/* Mode mismatch / empty messages */
+.proc-message {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    gap: 12px;
+    color: var(--text-dim);
+    font-size: 13px;
+    text-align: center;
+    line-height: 1.6;
+}
+
+.proc-message.mismatch {
+    color: var(--amber);
+}
+
+.proc-message.mismatch strong {
     font-weight: 700;
 }
 
-.assign-btn {
-    padding: 8px 20px;
+.proc-message-icon {
+    font-size: 28px;
+    opacity: 0.4;
+}
+
+/* ── Designator Footer (ASSIGN button) ── */
+.designator-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 20px;
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.assign-main-btn {
+    padding: 12px 56px;
     font-family: var(--font-sans);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
     text-transform: uppercase;
     color: var(--bg-base);
     background: var(--accent);
@@ -679,70 +742,34 @@ body {
     border-radius: var(--radius-sm);
     cursor: pointer;
     transition: all var(--transition-fast);
-    white-space: nowrap;
+    min-width: 200px;
 }
 
-.assign-btn:hover {
+.assign-main-btn:hover:not(:disabled) {
     background: #33ffaa;
-    box-shadow: 0 0 16px var(--accent-glow);
+    box-shadow: 0 0 20px var(--accent-glow);
     transform: translateY(-1px);
 }
 
-.assign-btn:active {
+.assign-main-btn:active:not(:disabled) {
     transform: translateY(0);
 }
 
-.assign-btn:disabled {
-    opacity: 0.4;
+.assign-main-btn:disabled {
+    opacity: 0.25;
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
 }
 
-.assign-btn.assigning {
-    background: var(--amber);
-    color: #1a1a1a;
+.assign-main-btn.unassign-mode {
+    background: var(--red);
+    color: #fff;
 }
 
-/* Assigned State */
-.assigned-state {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-}
-
-.assigned-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-family: var(--font-mono);
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--accent);
-}
-
-.assigned-check {
-    font-size: 16px;
-}
-
-.unassign-btn {
-    padding: 6px 12px;
-    font-family: var(--font-sans);
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-muted);
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.unassign-btn:hover {
-    color: var(--red);
-    border-color: var(--red);
-    background: var(--red-dim);
+.assign-main-btn.unassign-mode:hover:not(:disabled) {
+    background: #f87171;
+    box-shadow: 0 0 20px var(--red-dim);
 }
 
 /* ─── Toast Notifications ──────────────────────────────────────────── */
@@ -790,27 +817,13 @@ body {
 }
 
 @keyframes toastEnter {
-    from {
-        opacity: 0;
-        transform: translateX(30px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
+    from { opacity: 0; transform: translateX(30px); }
+    to   { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes toastExit {
-    from {
-        opacity: 1;
-        transform: translateX(0);
-    }
-
-    to {
-        opacity: 0;
-        transform: translateX(30px);
-    }
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(30px); }
 }
 
 /* ─── Overlays & Modals (Glassmorphism Setup) ───────────────────── */
@@ -989,64 +1002,25 @@ body {
 }
 
 @keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
-}
-
-/* Connection indicator updates */
-.status-indicator.offline .status-dot {
-    background: var(--red);
-    box-shadow: 0 0 8px var(--red-dim);
-}
-
-.status-indicator.offline .status-text {
-    color: var(--red);
-}
-
-.status-indicator.demo .status-dot {
-    background: var(--amber);
-    box-shadow: 0 0 8px var(--amber-dim);
-}
-
-.status-indicator.demo .status-text {
-    color: var(--amber);
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* ─── Responsive ───────────────────────────────────────────────────── */
 
-@media (max-width: 900px) {
-    #app-main {
-        flex-direction: column;
+@media (max-width: 720px) {
+    #traffic-list-panel {
+        width: 180px;
     }
 
-    .panel-divider {
-        width: 100%;
-        height: 1px;
+    .proc-grid {
+        grid-template-columns: repeat(2, 1fr);
+        padding: 12px;
+        gap: 8px;
     }
 
-    .panel-divider::before {
-        top: -1px;
-        left: 0;
-        width: 100%;
-        height: 3px;
-        background: linear-gradient(90deg,
-                transparent 0%,
-                var(--accent-dim) 20%,
-                var(--accent-dim) 80%,
-                transparent 100%);
-    }
-
-    .traffic-panel {
-        min-height: 0;
-    }
-
-    .search-input {
-        width: 140px;
+    .tl-airport {
+        display: none;
     }
 
     .header-center {
@@ -1054,25 +1028,25 @@ body {
     }
 }
 
-@media (max-width: 600px) {
-    #app-header {
-        padding: 0 12px;
-        gap: 8px;
+@media (max-width: 520px) {
+    #traffic-list-panel {
+        width: 140px;
     }
 
-    .logo h1 {
-        font-size: 13px;
+    .tl-callsign {
+        font-size: 11px;
+    }
+
+    .proc-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .assign-main-btn {
+        padding: 12px 28px;
+        min-width: 140px;
     }
 
     .traffic-count {
         display: none;
-    }
-
-    .aircraft-card {
-        padding: 10px 12px;
-    }
-
-    .callsign {
-        font-size: 14px;
     }
 }

@@ -1,9 +1,12 @@
 /**
- * STAR/SID Designator — Frontend Application
+ * STAR/SID Designator — Frontend Application (v2 Controller Panel)
  *
- * Connects to the bridge server via WebSocket, receives real-time traffic
- * updates, renders aircraft cards in split panels (Departures/Arrivals),
- * and sends assign/unassign/set_path commands back to the server.
+ * Flow:
+ *   1. Traffic List  →  select an aircraft
+ *   2. SID / STAR toggle  →  choose procedure mode
+ *   3. Procedure buttons  →  click to select a procedure
+ *   4. ASSIGN button  →  assign selected proc to aircraft
+ *      (if aircraft already has assignment, button becomes UNASSIGN)
  */
 
 (() => {
@@ -16,31 +19,41 @@
     let trafficState = {};
     let runwayConfig = {};
     let isDemo = false;
-    let appStatus = 'ready'; // 'ready' or 'needs_setup'
+    let appStatus = 'ready';
 
-    // DOM references
-    const depList = document.getElementById('departures-list');
-    const arrList = document.getElementById('arrivals-list');
-    const depEmpty = document.getElementById('dep-empty');
-    const arrEmpty = document.getElementById('arr-empty');
-    const depSearch = document.getElementById('dep-search');
-    const arrSearch = document.getElementById('arr-search');
-    const depCount = document.getElementById('dep-count');
-    const arrCount = document.getElementById('arr-count');
-    const statusEl = document.getElementById('connection-status');
-    const statusDot = statusEl.querySelector('.status-dot');
-    const statusText = statusEl.querySelector('.status-text');
-    const modeBadge = document.getElementById('mode-badge');
-    const runwayInfo = document.getElementById('runway-info');
-    const toastContainer = document.getElementById('toast-container');
+    let selectedCallsign = null;   // currently selected aircraft
+    let activeMode = 'sid';        // 'sid' | 'star'
+    let selectedProcedure = null;  // currently highlighted procedure button
 
-    // Overlay DOM references
-    const setupOverlay = document.getElementById('setup-overlay');
-    const detectionBox = document.getElementById('detection-box');
-    const detectedPathText = document.getElementById('detected-path-text');
-    const useDetectedBtn = document.getElementById('use-detected-btn');
-    const manualPathInput = document.getElementById('manual-path-input');
-    const savePathBtn = document.getElementById('save-path-btn');
+    // ─── DOM References ────────────────────────────────────────────────
+
+    // Header
+    const depCount          = document.getElementById('dep-count');
+    const arrCount          = document.getElementById('arr-count');
+    const statusEl          = document.getElementById('connection-status');
+    const statusText        = statusEl.querySelector('.status-text');
+    const modeBadge         = document.getElementById('mode-badge');
+    const runwayInfo        = document.getElementById('runway-info');
+    const toastContainer    = document.getElementById('toast-container');
+
+    // Traffic list
+    const trafficList       = document.getElementById('traffic-list');
+
+    // Designator panel
+    const assignedProcDisplay = document.getElementById('assigned-proc-display');
+    const acInfoBar           = document.getElementById('ac-info-bar');
+    const sidBtn              = document.getElementById('sid-btn');
+    const starBtn             = document.getElementById('star-btn');
+    const procGrid            = document.getElementById('proc-grid');
+    const assignBtn           = document.getElementById('assign-btn');
+
+    // Setup overlay
+    const setupOverlay        = document.getElementById('setup-overlay');
+    const detectionBox        = document.getElementById('detection-box');
+    const detectedPathText    = document.getElementById('detected-path-text');
+    const useDetectedBtn      = document.getElementById('use-detected-btn');
+    const manualPathInput     = document.getElementById('manual-path-input');
+    const savePathBtn         = document.getElementById('save-path-btn');
     const serverConnectionOverlay = document.getElementById('server-connection-overlay');
 
     // ─── WebSocket Connection ──────────────────────────────────────────
@@ -50,7 +63,7 @@
         const wsUrl = `${protocol}//${location.host}/ws`;
 
         setConnectionStatus('connecting');
-        serverConnectionOverlay.classList.remove('hidden'); // Show reconnect spinner until open
+        serverConnectionOverlay.classList.remove('hidden');
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
@@ -63,7 +76,7 @@
         };
 
         ws.onclose = () => {
-            setConnectionStatus('offline'); // Falls back to offline status
+            setConnectionStatus('offline');
             serverConnectionOverlay.classList.remove('hidden');
             scheduleReconnect();
         };
@@ -92,7 +105,6 @@
     }
 
     function setConnectionStatus(status, label = '') {
-        // Status classes: connected (green), offline (red), demo (amber), connecting (amber)
         statusEl.className = `status-indicator ${status}`;
         statusText.textContent = label || status.toUpperCase();
     }
@@ -102,22 +114,24 @@
     function handleMessage(data) {
         switch (data.type) {
             case 'traffic_update':
-                trafficState = data.traffic || {};
-                runwayConfig = data.runway_config || {};
-                isDemo = data.demo_mode || false;
-                appStatus = data.status || 'ready';
-                
-                // Update dynamic GUI setups
+                trafficState   = data.traffic       || {};
+                runwayConfig   = data.runway_config  || {};
+                isDemo         = data.demo_mode      || false;
+                appStatus      = data.status         || 'ready';
+
                 updateSetupOverlay(data.status, data.detected_path);
-                
-                // Update true Aurora connection indicators
                 updateConnectionIndicator(data.aurora_connected, isDemo);
-                
                 updateModeBadge();
                 updateRunwayInfo();
-                
+
                 if (appStatus === 'ready') {
-                    renderTraffic();
+                    // If selected aircraft vanished, deselect
+                    if (selectedCallsign && !trafficState[selectedCallsign]) {
+                        selectedCallsign  = null;
+                        selectedProcedure = null;
+                    }
+                    renderTrafficList();
+                    renderDesignatorPanel();
                 }
                 break;
 
@@ -162,8 +176,8 @@
     function handleSetPathResult(data) {
         if (data.success) {
             const airports = data.airport_count || 0;
-            const sids = data.sid_count || 0;
-            const stars = data.star_count || 0;
+            const sids     = data.sid_count     || 0;
+            const stars    = data.star_count    || 0;
             showToast(`✓ Loaded ${airports} airports (${sids} SIDs, ${stars} STARs) successfully!`, 'success');
             setupOverlay.classList.add('hidden');
         } else {
@@ -171,36 +185,32 @@
         }
     }
 
-
     function handleAssignResult(data) {
-        const card = document.querySelector(
-            `.aircraft-card[data-callsign="${data.callsign}"]`
-        );
-        if (card) {
-            card.classList.remove('assigning');
-        }
+        // Re-enable assign button
+        assignBtn.disabled = false;
 
         if (data.success) {
             showToast(`✓ ${data.procedure} → ${data.callsign}`, 'success');
+            selectedProcedure = null; // clear selection after successful assign
         } else {
-            showToast(
-                `✗ Failed: ${data.callsign} — ${data.error || 'Unknown error'}`,
-                'error'
-            );
+            showToast(`✗ Failed: ${data.callsign} — ${data.error || 'Unknown error'}`, 'error');
+            assignBtn.textContent = 'ASSIGN';
         }
+        renderDesignatorPanel();
     }
 
     function handleUnassignResult(data) {
         if (data.success) {
             showToast(`Cleared ${data.callsign}`, 'info');
         }
+        renderDesignatorPanel();
     }
 
-    // ─── Rendering ─────────────────────────────────────────────────────
+    // ─── Header Rendering ──────────────────────────────────────────────
 
     function updateModeBadge() {
         modeBadge.textContent = isDemo ? 'DEMO' : 'LIVE';
-        modeBadge.className = isDemo ? 'badge badge-demo' : 'badge badge-live';
+        modeBadge.className   = isDemo ? 'badge badge-demo' : 'badge badge-live';
     }
 
     function updateRunwayInfo() {
@@ -220,241 +230,306 @@
         }
     }
 
-    function renderTraffic() {
-        const depFilter = depSearch.value.toUpperCase().trim();
-        const arrFilter = arrSearch.value.toUpperCase().trim();
+    // ─── Traffic List Rendering ─────────────────────────────────────────
 
+    function renderTrafficList() {
         const departures = [];
-        const arrivals = [];
+        const arrivals   = [];
+        const overflys   = [];
 
-        for (const [callsign, data] of Object.entries(trafficState)) {
-            if (data.type === 'departure') {
-                if (!depFilter || callsign.includes(depFilter)) {
-                    departures.push(data);
-                }
-            } else if (data.type === 'arrival') {
-                if (!arrFilter || callsign.includes(arrFilter)) {
-                    arrivals.push(data);
-                }
-            }
+        for (const ac of Object.values(trafficState)) {
+            if (ac.type === 'departure')    departures.push(ac);
+            else if (ac.type === 'arrival') arrivals.push(ac);
+            else                            overflys.push(ac);
         }
 
-        // Sort by airport, then callsign
-        departures.sort((a, b) => (a.airport + a.callsign).localeCompare(b.airport + b.callsign));
-        arrivals.sort((a, b) => (a.airport + a.callsign).localeCompare(b.airport + b.callsign));
+        // Sort by callsign within each group
+        const byCallsign = (a, b) => a.callsign.localeCompare(b.callsign);
+        departures.sort(byCallsign);
+        arrivals.sort(byCallsign);
+        overflys.sort(byCallsign);
 
-        // Update counts
+        // Update header counts
         depCount.textContent = `${departures.length} DEP`;
         arrCount.textContent = `${arrivals.length} ARR`;
 
-        // Render panels
-        renderPanel(depList, departures, depEmpty, 'departure');
-        renderPanel(arrList, arrivals, arrEmpty, 'arrival');
-    }
+        trafficList.innerHTML = '';
 
-    function renderPanel(container, aircraft, emptyEl, type) {
-        // Group by airport
-        const groups = {};
-        for (const ac of aircraft) {
-            const key = ac.airport || 'UNKNOWN';
-            if (!groups[key]) groups[key] = [];
-            groups[key].push(ac);
-        }
-
-        // Track existing cards to avoid unnecessary re-renders
-        const existingCards = new Map();
-        container.querySelectorAll('.aircraft-card').forEach((card) => {
-            existingCards.set(card.dataset.callsign, card);
-        });
-
-        // Clear and rebuild
-        container.innerHTML = '';
-
-        if (aircraft.length === 0) {
-            container.appendChild(emptyEl);
+        const total = departures.length + arrivals.length + overflys.length;
+        if (total === 0) {
+            trafficList.innerHTML = `
+                <div class="tl-empty">
+                    <span class="tl-empty-icon">📡</span>
+                    <span>No traffic</span>
+                </div>`;
             return;
         }
 
-        for (const [airport, acList] of Object.entries(groups)) {
-            // Airport group header
-            const groupEl = document.createElement('div');
-            groupEl.className = 'airport-group';
+        if (departures.length > 0) buildTrafficSection('DEPARTURES', departures, 'dep');
+        if (arrivals.length   > 0) buildTrafficSection('ARRIVALS',   arrivals,   'arr');
+        if (overflys.length   > 0) buildTrafficSection('OVERFLY',    overflys,   'ovr');
+    }
 
-            const rwyInfo = type === 'departure'
-                ? runwayConfig[airport]?.dep_rwys?.join('/') || ''
-                : runwayConfig[airport]?.arr_rwys?.join('/') || '';
+    function buildTrafficSection(label, acList, dotClass) {
+        const section = document.createElement('div');
+        section.className = 'tl-section';
 
-            groupEl.innerHTML = `
-                <div class="airport-group-header">
-                    ${airport}
-                    ${rwyInfo ? `<span class="rwy-tag">RWY ${rwyInfo}</span>` : ''}
-                </div>
+        const hdr = document.createElement('div');
+        hdr.className = 'tl-section-header';
+        hdr.textContent = label;
+        section.appendChild(hdr);
+
+        for (const ac of acList) {
+            const isSelected = ac.callsign === selectedCallsign;
+
+            const item = document.createElement('div');
+            item.className = `tl-item${isSelected ? ' selected' : ''}`;
+            item.dataset.callsign = ac.callsign;
+
+            item.innerHTML = `
+                <span class="tl-dot ${dotClass}"></span>
+                <span class="tl-callsign">${escapeHtml(ac.callsign)}</span>
+                <span class="tl-airport">${escapeHtml(ac.airport || '')}</span>
+                ${ac.assigned
+                    ? `<span class="tl-assigned-tag">${escapeHtml(ac.assigned)}</span>`
+                    : ''}
             `;
 
-            for (const ac of acList) {
-                const cardEl = createCard(ac, type);
-                // Skip animation if card existed before
-                if (existingCards.has(ac.callsign)) {
-                    cardEl.style.animation = 'none';
-                }
-                groupEl.appendChild(cardEl);
-            }
+            item.addEventListener('click', () => selectAircraft(ac.callsign));
+            section.appendChild(item);
+        }
 
-            container.appendChild(groupEl);
+        trafficList.appendChild(section);
+    }
+
+    // ─── Aircraft Selection ─────────────────────────────────────────────
+
+    function selectAircraft(callsign) {
+        selectedCallsign  = callsign;
+        selectedProcedure = null;
+
+        const ac = trafficState[callsign];
+        if (ac) {
+            // Auto-switch mode to match aircraft type
+            if (ac.type === 'departure')    activeMode = 'sid';
+            else if (ac.type === 'arrival') activeMode = 'star';
+            // overfly: leave current mode unchanged
+        }
+
+        updateModeToggleUI();
+        renderTrafficList();      // refresh selected highlight
+        renderDesignatorPanel();
+    }
+
+    // ─── Mode Toggle ───────────────────────────────────────────────────
+
+    function setMode(mode) {
+        activeMode        = mode;
+        selectedProcedure = null;
+        updateModeToggleUI();
+        renderProcGrid();
+        updateAssignButton();
+    }
+
+    function updateModeToggleUI() {
+        sidBtn.classList.toggle('active',  activeMode === 'sid');
+        starBtn.classList.toggle('active', activeMode === 'star');
+    }
+
+    sidBtn.addEventListener('click',  () => setMode('sid'));
+    starBtn.addEventListener('click', () => setMode('star'));
+
+    // ─── Designator Panel Rendering ────────────────────────────────────
+
+    function renderDesignatorPanel() {
+        const ac = selectedCallsign ? trafficState[selectedCallsign] : null;
+        updateAssignedProcDisplay(ac);
+        renderAcInfoBar(ac);
+        renderProcGrid();
+        updateAssignButton(ac);
+    }
+
+    /** Shows the currently assigned procedure name (read-only display box). */
+    function updateAssignedProcDisplay(ac) {
+        if (ac && ac.assigned) {
+            assignedProcDisplay.textContent = ac.assigned;
+            assignedProcDisplay.classList.remove('empty');
+            assignedProcDisplay.classList.add('has-value');
+        } else {
+            assignedProcDisplay.textContent = '';
+            assignedProcDisplay.classList.remove('has-value');
+            assignedProcDisplay.classList.add('empty');
         }
     }
 
-    function createCard(ac, type) {
-        const card = document.createElement('div');
-        card.className = `aircraft-card ${type}-card`;
-        if (ac.assigned) card.classList.add('assigned');
-        card.dataset.callsign = ac.callsign;
+    /** Renders the aircraft info bar (callsign, type badge, route, altitude, runway). */
+    function renderAcInfoBar(ac) {
+        if (!ac) {
+            acInfoBar.innerHTML = `<span class="ac-info-placeholder">Select an aircraft from the traffic list</span>`;
+            return;
+        }
 
-        // Format altitude
+        let typeLabel, typeClass;
+        if (ac.type === 'departure') {
+            typeLabel = 'Departure'; typeClass = 'dep';
+        } else if (ac.type === 'arrival') {
+            typeLabel = 'Arrival'; typeClass = 'arr';
+        } else {
+            typeLabel = 'Overfly'; typeClass = 'ovr';
+        }
+
+        const depCode = escapeHtml(ac.departure || '????');
+        const arrCode = escapeHtml(ac.arrival   || '????');
         const altText = formatAltitude(ac.altitude);
 
-        // Format airports
-        const depCode = ac.departure || '????';
-        const arrCode = ac.arrival || '????';
+        acInfoBar.innerHTML = `
+            <span class="ac-callsign">${escapeHtml(ac.callsign)}</span>
+            <span class="ac-type-badge ${typeClass}">Aircraft is ${typeLabel}</span>
+            <span class="ac-route-mini">
+                <span class="mini-dep">${depCode}</span>
+                <span class="mini-arrow">→</span>
+                <span class="mini-arr">${arrCode}</span>
+            </span>
+            <span class="ac-alt">${altText}</span>
+            ${ac.runway ? `<span class="ac-rwy">RWY ${escapeHtml(ac.runway)}</span>` : ''}
+        `;
+    }
 
-        // Build suggestion options
-        const suggestions = ac.suggestions || [];
+    /** Renders the procedure button grid. */
+    function renderProcGrid() {
+        procGrid.innerHTML = '';
+        procGrid.className = `proc-grid ${activeMode}-mode`;
+
+        const ac = selectedCallsign ? trafficState[selectedCallsign] : null;
+
+        // ── No aircraft selected
+        if (!ac) {
+            procGrid.innerHTML = `
+                <div class="proc-message">
+                    <span class="proc-message-icon">✈</span>
+                    <span>Select an aircraft to view procedures</span>
+                </div>`;
+            return;
+        }
+
+        // ── Overfly aircraft — no procedures
+        if (ac.type !== 'departure' && ac.type !== 'arrival') {
+            procGrid.innerHTML = `
+                <div class="proc-message">
+                    <span class="proc-message-icon">✈</span>
+                    <span>Aircraft is Overfly — no SID/STAR procedures available</span>
+                </div>`;
+            return;
+        }
+
+        // ── Wrong mode for aircraft type
+        const modeMatches = (ac.type === 'departure' && activeMode === 'sid') ||
+                            (ac.type === 'arrival'   && activeMode === 'star');
+
+        if (!modeMatches) {
+            const correctLabel = ac.type === 'departure' ? 'SID' : 'STAR';
+            const typeLabel    = ac.type === 'departure' ? 'Departure' : 'Arrival';
+            procGrid.innerHTML = `
+                <div class="proc-message mismatch">
+                    <span class="proc-message-icon">↔</span>
+                    <span>Aircraft is ${typeLabel} — switch to <strong>${correctLabel}</strong> mode</span>
+                </div>`;
+            return;
+        }
+
+        // ── No procedures available
         const allProcs = ac.all_procedures || [];
-        const bestMatch = suggestions.length > 0 && suggestions[0].core_match
-            ? suggestions[0].name
-            : null;
+        if (allProcs.length === 0) {
+            procGrid.innerHTML = `
+                <div class="proc-message">
+                    <span class="proc-message-icon">—</span>
+                    <span>No procedures found for this aircraft</span>
+                </div>`;
+            return;
+        }
 
-        card.innerHTML = `
-            <div class="card-row-1">
-                <span class="callsign">${escapeHtml(ac.callsign)}</span>
-                <div class="card-meta">
-                    <span class="altitude">${altText}</span>
-                    <span class="squawk">
-                        <span class="squawk-dot"></span>
-                        ${escapeHtml(ac.squawk || '----')}
-                    </span>
-                </div>
-            </div>
-            <div class="card-row-2">
-                <span class="airports">
-                    <span class="dep-code">${escapeHtml(depCode)}</span>
-                    <span class="arrow">→</span>
-                    <span class="arr-code">${escapeHtml(arrCode)}</span>
-                </span>
-                <span class="runway-tag">RWY ${escapeHtml(ac.runway || '--')}</span>
-            </div>
-            <div class="card-row-3">${escapeHtml(ac.route || 'No route filed')}</div>
-            <div class="card-row-4">
-                ${ac.assigned
-                    ? renderAssignedState(ac)
-                    : renderSelectState(ac, suggestions, allProcs, bestMatch)
-                }
-            </div>
-        `;
+        // ── Build suggestion lookup for visual ranking
+        const suggestions = ac.suggestions || [];
+        const suggMap = new Map(suggestions.map(s => [s.name, s]));
 
-        // Attach event listeners
+        for (const procName of allProcs) {
+            const sugg        = suggMap.get(procName);
+            const isBestMatch = sugg?.core_match === true;
+            const isSuggested = !!sugg && !isBestMatch;
+            const isSelected  = procName === selectedProcedure;
+
+            const btn = document.createElement('button');
+            let cls = 'proc-btn';
+            if (isBestMatch) cls += ' best-match';
+            else if (isSuggested) cls += ' suggested';
+            if (isSelected) cls += ' selected';
+            btn.className = cls;
+            btn.textContent = procName;
+            btn.title = sugg
+                ? `${isBestMatch ? '★ Best match' : '● Suggested'} · ${sugg.overlap} shared fix${sugg.overlap !== 1 ? 'es' : ''}`
+                : procName;
+
+            btn.addEventListener('click', () => {
+                selectedProcedure = procName;
+                renderProcGrid();          // refresh highlights
+                updateAssignButton();
+            });
+
+            procGrid.appendChild(btn);
+        }
+    }
+
+    /** Enables / disables the ASSIGN/UNASSIGN button and updates its label. */
+    function updateAssignButton(ac) {
+        if (!ac) ac = selectedCallsign ? trafficState[selectedCallsign] : null;
+
+        if (!ac) {
+            assignBtn.disabled    = true;
+            assignBtn.textContent = 'ASSIGN';
+            assignBtn.className   = 'assign-main-btn';
+            return;
+        }
+
         if (ac.assigned) {
-            const unassignBtn = card.querySelector('.unassign-btn');
-            if (unassignBtn) {
-                unassignBtn.addEventListener('click', () => {
-                    sendUnassign(ac.callsign);
-                });
-            }
+            // Already has an assignment → offer to UNASSIGN
+            assignBtn.disabled    = false;
+            assignBtn.textContent = 'UNASSIGN';
+            assignBtn.className   = 'assign-main-btn unassign-mode';
+        } else if (selectedProcedure) {
+            assignBtn.disabled    = false;
+            assignBtn.textContent = 'ASSIGN';
+            assignBtn.className   = 'assign-main-btn';
         } else {
-            const assignBtn = card.querySelector('.assign-btn');
-            const select = card.querySelector('.procedure-select');
-            if (assignBtn && select) {
-                assignBtn.addEventListener('click', () => {
-                    const procedure = select.value;
-                    if (!procedure) {
-                        showToast('Select a procedure first', 'error');
-                        return;
-                    }
-                    sendAssign(ac.callsign, procedure);
-                    card.classList.add('assigning');
-                    assignBtn.classList.add('assigning');
-                    assignBtn.textContent = 'PUSHING...';
-                    assignBtn.disabled = true;
-                });
-            }
+            assignBtn.disabled    = true;
+            assignBtn.textContent = 'ASSIGN';
+            assignBtn.className   = 'assign-main-btn';
         }
-
-        return card;
     }
 
-    function renderAssignedState(ac) {
-        return `
-            <div class="assigned-state">
-                <span class="assigned-label">
-                    <span class="assigned-check">✓</span>
-                    ${escapeHtml(ac.assigned)}
-                </span>
-                <button class="unassign-btn">CLEAR</button>
-            </div>
-        `;
-    }
+    // ─── Assign Button Handler ──────────────────────────────────────────
 
-    function renderSelectState(ac, suggestions, allProcs, bestMatch) {
-        // Build option list: suggested first, then remaining
-        const suggestedNames = new Set(suggestions.map((s) => s.name));
-        const remaining = allProcs.filter((name) => !suggestedNames.has(name));
+    assignBtn.addEventListener('click', () => {
+        const ac = selectedCallsign ? trafficState[selectedCallsign] : null;
+        if (!ac) return;
 
-        let options = '<option value="" disabled selected>Select procedure...</option>';
-
-        // Suggested options (with star marker)
-        for (const s of suggestions) {
-            const marker = s.core_match ? '★ ' : '● ';
-            options += `<option value="${escapeHtml(s.name)}" class="suggested">`;
-            options += `${marker}${escapeHtml(s.name)} (${s.overlap} fix${s.overlap !== 1 ? 'es' : ''})`;
-            options += `</option>`;
+        if (ac.assigned) {
+            // UNASSIGN flow
+            sendUnassign(ac.callsign);
+            assignBtn.disabled    = true;
+            assignBtn.textContent = 'CLEARING...';
+        } else if (selectedProcedure) {
+            // ASSIGN flow
+            sendAssign(ac.callsign, selectedProcedure);
+            assignBtn.disabled    = true;
+            assignBtn.textContent = 'PUSHING...';
         }
-
-        // Separator if both groups exist
-        if (suggestions.length > 0 && remaining.length > 0) {
-            options += '<option disabled>──────────────</option>';
-        }
-
-        // Remaining procedures
-        for (const name of remaining) {
-            options += `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`;
-        }
-
-        // Pre-select best match if available
-        let selectHtml = `<select class="procedure-select">`;
-        if (bestMatch) {
-            selectHtml = `<select class="procedure-select" data-best="${escapeHtml(bestMatch)}">`;
-            // Rebuild with best match selected
-            options = '<option value="" disabled>Select procedure...</option>';
-            for (const s of suggestions) {
-                const marker = s.core_match ? '★ ' : '● ';
-                const sel = s.name === bestMatch ? 'selected' : '';
-                options += `<option value="${escapeHtml(s.name)}" class="suggested" ${sel}>`;
-                options += `${marker}${escapeHtml(s.name)} (${s.overlap} fix${s.overlap !== 1 ? 'es' : ''})`;
-                options += `</option>`;
-            }
-            if (suggestions.length > 0 && remaining.length > 0) {
-                options += '<option disabled>──────────────</option>';
-            }
-            for (const name of remaining) {
-                options += `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`;
-            }
-        }
-
-        return `
-            ${selectHtml}${options}</select>
-            <button class="assign-btn">ASSIGN</button>
-        `;
-    }
+    });
 
     // ─── Commands ──────────────────────────────────────────────────────
 
     function sendAssign(callsign, procedure) {
         if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-                type: 'assign',
-                callsign: callsign,
-                procedure: procedure,
-            }));
+            ws.send(JSON.stringify({ type: 'assign', callsign, procedure }));
         } else {
             showToast('Not connected to server', 'error');
         }
@@ -462,19 +537,15 @@
 
     function sendUnassign(callsign) {
         if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-                type: 'unassign',
-                callsign: callsign,
-            }));
+            ws.send(JSON.stringify({ type: 'unassign', callsign }));
+        } else {
+            showToast('Not connected to server', 'error');
         }
     }
 
     function sendSetPath(path) {
         if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-                type: 'set_path',
-                path: path,
-            }));
+            ws.send(JSON.stringify({ type: 'set_path', path }));
         } else {
             showToast('Not connected to server', 'error');
         }
@@ -486,30 +557,26 @@
         if (!alt || alt === '0') return 'GND';
         const num = parseInt(alt, 10);
         if (isNaN(num)) return alt;
-        if (num >= 10000) {
-            return `FL${Math.round(num / 100)}`;
-        }
+        if (num >= 10000) return `FL${Math.round(num / 100)}`;
         return `${num.toLocaleString()} ft`;
     }
 
-    // Basic HTML escaping
     function escapeHtml(str) {
         if (!str) return '';
         return str
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
+            .replace(/&/g,  '&amp;')
+            .replace(/</g,  '&lt;')
+            .replace(/>/g,  '&gt;')
+            .replace(/"/g,  '&quot;')
+            .replace(/'/g,  '&#039;');
     }
 
     function showToast(message, type = 'info') {
         const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
+        toast.className   = `toast ${type}`;
         toast.textContent = message;
         toastContainer.appendChild(toast);
 
-        // Auto-remove after 4 seconds
         setTimeout(() => {
             toast.style.animation = 'toastExit 0.3s ease-in forwards';
             setTimeout(() => toast.remove(), 300);
@@ -520,9 +587,7 @@
 
     useDetectedBtn.addEventListener('click', () => {
         const detectedPath = detectedPathText.textContent.trim();
-        if (detectedPath) {
-            sendSetPath(detectedPath);
-        }
+        if (detectedPath) sendSetPath(detectedPath);
     });
 
     savePathBtn.addEventListener('click', () => {
@@ -533,11 +598,6 @@
         }
         sendSetPath(manualPath);
     });
-
-    // ─── Search Handlers ───────────────────────────────────────────────
-
-    depSearch.addEventListener('input', renderTraffic);
-    arrSearch.addEventListener('input', renderTraffic);
 
     // ─── Initialize ────────────────────────────────────────────────────
 

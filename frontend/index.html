@@ -7,7 +7,7 @@
     <title>✈ STAR/SID Designator</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -37,51 +37,53 @@
         </div>
     </header>
 
-    <!-- ─── Main Split Panels ────────────────────────────────────────── -->
+    <!-- ─── Main Layout ──────────────────────────────────────────────── -->
     <main id="app-main">
-        <!-- Departures Panel (SID) -->
-        <section id="departures-panel" class="traffic-panel">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <span class="panel-icon dep-icon">↗</span>
-                    <h2>DEPARTURES</h2>
-                    <span class="panel-label">SID</span>
-                </div>
-                <div class="panel-search">
-                    <input type="text" id="dep-search" class="search-input"
-                           placeholder="Search callsign..." autocomplete="off">
-                </div>
+
+        <!-- ── Left: Traffic List ─────────────────────────────────── -->
+        <section id="traffic-list-panel">
+            <div class="tl-header">
+                <span class="tl-header-icon">📡</span>
+                <span>TRAFFIC LIST</span>
             </div>
-            <div id="departures-list" class="aircraft-list">
-                <div class="empty-state" id="dep-empty">
-                    <span class="empty-icon">✈</span>
-                    <p>No departures</p>
-                </div>
+            <div id="traffic-list" class="tl-list">
+                <!-- Populated by JS -->
             </div>
         </section>
 
-        <!-- Divider -->
+        <!-- ── Divider ────────────────────────────────────────────── -->
         <div class="panel-divider"></div>
 
-        <!-- Arrivals Panel (STAR) -->
-        <section id="arrivals-panel" class="traffic-panel">
-            <div class="panel-header">
-                <div class="panel-title">
-                    <span class="panel-icon arr-icon">↙</span>
-                    <h2>ARRIVALS</h2>
-                    <span class="panel-label">STAR</span>
+        <!-- ── Right: Designator Panel ────────────────────────────── -->
+        <section id="designator-panel">
+
+            <!-- Top row: Assigned Proc display + SID/STAR mode toggle -->
+            <div class="designator-top">
+                <div class="assigned-proc-section">
+                    <div class="assigned-proc-label">ASSIGNED PROC</div>
+                    <div id="assigned-proc-display" class="assigned-proc-display empty"></div>
                 </div>
-                <div class="panel-search">
-                    <input type="text" id="arr-search" class="search-input"
-                           placeholder="Search callsign..." autocomplete="off">
-                </div>
-            </div>
-            <div id="arrivals-list" class="aircraft-list">
-                <div class="empty-state" id="arr-empty">
-                    <span class="empty-icon">✈</span>
-                    <p>No arrivals</p>
+                <div class="mode-toggle">
+                    <button id="sid-btn" class="mode-btn sid active">SID</button>
+                    <button id="star-btn" class="mode-btn star">STAR</button>
                 </div>
             </div>
+
+            <!-- Selected aircraft info bar -->
+            <div id="ac-info-bar" class="ac-info-bar">
+                <span class="ac-info-placeholder">Select an aircraft from the traffic list</span>
+            </div>
+
+            <!-- Procedure button grid -->
+            <div id="proc-grid" class="proc-grid">
+                <!-- Populated by JS -->
+            </div>
+
+            <!-- Assign button -->
+            <div class="designator-footer">
+                <button id="assign-btn" class="assign-main-btn" disabled>ASSIGN</button>
+            </div>
+
         </section>
     </main>
 
