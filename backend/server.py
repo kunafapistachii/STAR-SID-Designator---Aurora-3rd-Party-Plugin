@@ -695,16 +695,31 @@ class DesignatorServer:
             # Live: push via #LBWP
             try:
                 resp = await self.bridge.assign_waypoint(callsign, procedure)
-                if callsign in self.traffic_state:
-                    self.traffic_state[callsign]['assigned'] = procedure
+                if resp.startswith('@ERR'):
+                    error_msg = resp.split(';')[-1].strip() if ';' in resp else resp
+                    if not error_msg:
+                        error_msg = "Command failed"
+                    if "traffic not assumed" in error_msg.lower():
+                        error_msg += " (Please assume the aircraft in Aurora first)"
 
-                await ws.send_str(json.dumps({
-                    'type': 'assign_result',
-                    'callsign': callsign,
-                    'procedure': procedure,
-                    'success': True,
-                    'aurora_response': resp,
-                }))
+                    await ws.send_str(json.dumps({
+                        'type': 'assign_result',
+                        'callsign': callsign,
+                        'procedure': procedure,
+                        'success': False,
+                        'error': error_msg,
+                    }))
+                else:
+                    if callsign in self.traffic_state:
+                        self.traffic_state[callsign]['assigned'] = procedure
+
+                    await ws.send_str(json.dumps({
+                        'type': 'assign_result',
+                        'callsign': callsign,
+                        'procedure': procedure,
+                        'success': True,
+                        'aurora_response': resp,
+                    }))
             except Exception as e:
                 await ws.send_str(json.dumps({
                     'type': 'assign_result',
@@ -720,21 +735,52 @@ class DesignatorServer:
     async def _handle_unassign(self, data: dict, ws: web.WebSocketResponse):
         """Handle unassign/clear command."""
         callsign = data.get('callsign', '')
-        if callsign in self.traffic_state:
-            self.traffic_state[callsign]['assigned'] = None
-            self.traffic_state[callsign]['current_waypoint'] = ''
+        if not callsign:
+            return
 
-            if not self.demo_mode and self.bridge:
-                try:
-                    await self.bridge.assign_waypoint(callsign, '')
-                except Exception as e:
-                    logger.error(f"Failed to clear waypoint for {callsign}: {e}")
+        if self.demo_mode:
+            if callsign in self.traffic_state:
+                self.traffic_state[callsign]['assigned'] = None
+                self.traffic_state[callsign]['current_waypoint'] = ''
+            await ws.send_str(json.dumps({
+                'type': 'unassign_result',
+                'callsign': callsign,
+                'success': True,
+            }))
+        else:
+            # Live unassign
+            try:
+                resp = await self.bridge.assign_waypoint(callsign, '')
+                if resp.startswith('@ERR'):
+                    error_msg = resp.split(';')[-1].strip() if ';' in resp else resp
+                    if not error_msg:
+                        error_msg = "Command failed"
+                    if "traffic not assumed" in error_msg.lower():
+                        error_msg += " (Please assume the aircraft in Aurora first)"
 
-        await ws.send_str(json.dumps({
-            'type': 'unassign_result',
-            'callsign': callsign,
-            'success': True,
-        }))
+                    await ws.send_str(json.dumps({
+                        'type': 'unassign_result',
+                        'callsign': callsign,
+                        'success': False,
+                        'error': error_msg,
+                    }))
+                else:
+                    if callsign in self.traffic_state:
+                        self.traffic_state[callsign]['assigned'] = None
+                        self.traffic_state[callsign]['current_waypoint'] = ''
+                    await ws.send_str(json.dumps({
+                        'type': 'unassign_result',
+                        'callsign': callsign,
+                        'success': True,
+                    }))
+            except Exception as e:
+                await ws.send_str(json.dumps({
+                    'type': 'unassign_result',
+                    'callsign': callsign,
+                    'success': False,
+                    'error': str(e),
+                }))
+
         await self._broadcast_state()
 
     async def _broadcast_state(self):

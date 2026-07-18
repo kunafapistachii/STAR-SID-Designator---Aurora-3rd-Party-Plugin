@@ -200,8 +200,12 @@
     }
 
     function handleUnassignResult(data) {
+        assignBtn.disabled = false;
+
         if (data.success) {
             showToast(`Cleared ${data.callsign}`, 'info');
+        } else {
+            showToast(`✗ Failed to clear: ${data.callsign} — ${data.error || 'Unknown error'}`, 'error');
         }
         renderDesignatorPanel();
     }
