@@ -13,6 +13,7 @@ Architecture mirrors Omar's Tower Strip plugin pattern:
 import asyncio
 import json
 import logging
+import mimetypes
 import os
 import random
 import re
@@ -25,6 +26,11 @@ import aiohttp
 
 from .parser import Procedure, build_database
 from .matcher import match_procedures, parse_route_string
+
+# Explicitly register MIME types to fix Windows Registry corruption quirks
+mimetypes.init()
+mimetypes.add_type('text/css', '.css')
+mimetypes.add_type('application/javascript', '.js')
 
 logging.basicConfig(
     level=logging.INFO,
@@ -67,6 +73,15 @@ class DesignatorServer:
             self.app.router.add_get(
                 '/',
                 lambda r: web.FileResponse(frontend_dir / 'index.html')
+            )
+            # Support relative paths (file:// protocol compatibility)
+            self.app.router.add_get(
+                '/style.css',
+                lambda r: web.FileResponse(frontend_dir / 'style.css')
+            )
+            self.app.router.add_get(
+                '/app.js',
+                lambda r: web.FileResponse(frontend_dir / 'app.js')
             )
             self.app.router.add_static('/static', frontend_dir)
         else:
