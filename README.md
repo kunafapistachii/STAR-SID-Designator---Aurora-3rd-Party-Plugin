@@ -1,12 +1,12 @@
 # ✈️ Aurora STAR/SID Designator
 
-STAR/SID Designator adalah plugin pihak ketiga (3rd-party plugin) untuk **IVAO Aurora ATC Client**. Plugin ini secara otomatis mencocokkan rute penerbangan pesawat dengan prosedur keberangkatan (SID) atau kedatangan (STAR) yang sesuai berdasarkan runway yang sedang aktif, lalu mengirimkan designator prosedur tersebut langsung ke label waypoint/scratchpad flight strip di Aurora via perintah TCP `#LBWP`.
+STAR/SID Designator is a 3rd-party plugin for the **IVAO Aurora ATC Client**. This plugin automatically matches an aircraft's filed flight route to the correct Standard Instrument Departure (SID) or Standard Terminal Arrival Route (STAR) procedure name based on the active runway in use, and then writes that matched designator directly into the aircraft's flight strip waypoint/scratchpad label field in Aurora using the `#LBWP` TCP command.
 
 ---
 
 ## 🏛️ System Architecture
 
-Aplikasi ini menggunakan arsitektur tiga arah (three-tier architecture):
+The application operates on a three-tier architecture:
 
 ```
 ┌────────────────────┐      Port 1130      ┌───────────────────────┐
@@ -22,102 +22,102 @@ Aplikasi ini menggunakan arsitektur tiga arah (three-tier architecture):
                                             └───────────────────────┘
 ```
 
-1. **Aurora ATC Client**: Sumber data rencana penerbangan (`#FP`), posisi traffic (`#TRPOS`), dan konfigurasi runway aktif (`#CTRLRWY`). Menerima perintah penugasan scratchpad label via `#LBWP`.
+1. **Aurora ATC Client**: Serves as the source of flight plan (`#FP`), traffic position (`#TRPOS`), and runway configuration (`#CTRLRWY`) data. Accepts scratchpad label assignments via `#LBWP`.
 2. **Python Bridge Server**: 
-   - Mengelola koneksi asinkron TCP ke Aurora dan siklus polling data traffic.
-   - Melakukan parsing file sektor (`.sid` dan `.str`) secara rekursif dan menjalankan algoritma pencocokan rute.
-   - Menyediakan API WebSocket dan static file server untuk dashboard web.
-3. **Web Frontend Dashboard**: Interface controller dengan tema *dark glassmorphic* premium yang menampilkan daftar traffic keberangkatan (Departures) dan kedatangan (Arrivals) beserta saran pencocokan prosedur.
+   - Manages the asynchronous TCP connection to Aurora and handles periodic traffic polling cycles.
+   - Hosts the dynamic sector file parser and route matching engine.
+   - Serves static files and manages WebSocket communication for the client dashboard.
+3. **Web Frontend Dashboard**: A premium dark glassmorphic controller interface showing live traffic split into Departures (SID) and Arrivals (STAR) with intelligent match suggestions.
 
 ---
 
-## ✨ Fitur Utama
+## ✨ Key Features
 
-- **Dynamic Sector Directory Scanning**: Memindai folder `Airports` secara rekursif berdasarkan konfigurasi `SECTOR_FILES_PATH` untuk memuat file `.sid` dan `.str` semua bandara di dalam FIR secara otomatis.
-- **Smart Route Matching Algorithm**: Menghindari kesalahan pencocokan rute akibat beberapa prosedur yang menggunakan jalur akhir/awal yang sama (overlap) dengan mencocokkan core fix dari nama prosedur terlebih dahulu (misal: "EGUKO 2L" dicari fix `EGUKO` pada rute), baru kemudian menggunakan jumlah fix overlap sebagai tiebreaker.
-- **Connection State Machine**: Indikator koneksi real-time pada UI dashboard (`AURORA: ONLINE`, `OFFLINE`, atau `DEMO MODE`). Dashboard akan memblokir interaksi dan menampilkan modal reconnecting jika koneksi ke server Python terputus.
-- **Demo Mode**: Mode simulasi offline yang memuat traffic buatan realistis untuk Bandara Soekarno-Hatta (WIII) guna keperluan pengujian UI dan fitur tanpa perlu tersambung ke Aurora.
-
----
-
-## ⚙️ Persyaratan Sistem (Prerequisites)
-
-- **Python 3.10** atau versi lebih baru.
-- **IVAO Aurora ATC Client** terinstal di PC.
-- File Sektor FIR terinstal di Aurora (berisi folder `Airports` dengan file `.sid` & `.str`).
+- **Dynamic Sector Directory Scanning**: Recursively scans the path configured in `SECTOR_FILES_PATH` to discover and pair `.sid` and `.str` files for all airports under the FIR automatically.
+- **Smart Route Matching Algorithm**: Solves route matching conflicts (where multiple procedures share a common route segment or entry fix) by prioritizing name-based core fix matching first (e.g. matching fix `EGUKO` for procedure "EGUKO 2L"), and using procedure fix overlap counts as a tiebreaker.
+- **Connection State Machine**: Real-time status indicators on the dashboard UI (`AURORA: ONLINE` [pulsing green], `OFFLINE` [static red], or `DEMO MODE` [amber]). The dashboard will display a blurred reconnecting modal to block stale interactions if the websocket connection to the server is lost.
+- **Demo Mode**: An offline simulation mode that generates realistic mock traffic for Jakarta Soekarno-Hatta (WIII) for UI development and testing without needing a live connection to Aurora.
 
 ---
 
-## 🔧 Konfigurasi (`.env`)
+## ⚙️ Prerequisites
 
-Salin berkas `.env.example` menjadi `.env` lalu sesuaikan parameternya:
+- **Python 3.10** or newer.
+- **IVAO Aurora ATC Client** installed on your PC.
+- Active FIR Sector Files installed in Aurora (containing the `Airports` folder with `.sid` & `.str` files).
+
+---
+
+## 🔧 Configuration (`.env`)
+
+Copy `.env.example` to `.env` and fill in your values:
 
 ```env
-# Koneksi TCP ke Aurora
+# Aurora TCP Connection
 AURORA_HOST=localhost
 AURORA_PORT=1130
 
-# Path folder Include sector files Aurora
-# Contoh: C:/IVAO/Aurora/SectorFiles/Include
+# Path to your Aurora SectorFiles/Include/<FIR>/Airports/ folder
+# Example: C:/IVAO/Aurora/SectorFiles/Include
 SECTOR_FILES_PATH=F:/Aurora/SectorFiles/Include
 
-# Interval refresh traffic dari Aurora (dalam detik)
+# Polling interval in seconds (how often to refresh traffic from Aurora)
 POLL_INTERVAL=3
 
-# Port untuk Web Dashboard
+# Web dashboard server port
 WEB_PORT=8080
 
-# Demo Mode (true untuk simulasi offline, false untuk koneksi real-time)
+# Demo Mode (set to true for offline simulation, false for live TCP mode)
 DEMO_MODE=true
 ```
 
 > [!NOTE]  
-> Jika `SECTOR_FILES_PATH` tidak valid atau belum diisi, dashboard akan masuk ke mode setup otomatis untuk meminta lokasi folder melalui GUI web.
+> If `SECTOR_FILES_PATH` is missing or invalid, the app enters a `needs_setup` state, locking the dashboard and prompting you to set the path via the built-in Setup GUI.
 
 ---
 
-## 🚀 Cara Menjalankan Aplikasi
+## 🚀 How to Run
 
-1. **Instal Dependensi**:
-   Buka terminal di root direktori project, lalu jalankan perintah berikut untuk menginstal package yang dibutuhkan:
+1. **Install Dependencies**:
+   Open a terminal in the project root directory and run:
    ```bash
    pip install -r requirements.txt
    ```
 
-2. **Jalankan Server**:
-   Cukup klik ganda (double-click) pada file **`Start-Server.bat`** di Windows. Script ini akan mendeteksi virtual environment `.venv` secara otomatis jika ada, atau menggunakan Python global sistem Anda.
+2. **Start the Server**:
+   Double-click the **`Start-Server.bat`** file on Windows. This launcher automatically detects a local virtual environment (`.venv`) if present, or falls back to your global system Python.
 
-3. **Buka Web Dashboard**:
-   Buka browser Anda dan akses alamat:
+3. **Open the Web Dashboard**:
+   Open your browser and navigate to:
    [http://localhost:8080](http://localhost:8080)
 
-4. **Matikan Server**:
-   Klik ganda pada file **`Stop-Server.bat`** atau tutup langsung jendela terminal server yang sedang berjalan.
+4. **Stop the Server**:
+   Double-click **`Stop-Server.bat`** or close the server console/terminal window.
 
 ---
 
-## 🎮 Cara Penggunaan Dashboard
+## 🎮 Using the Dashboard
 
-1. **Menghubungkan ke Aurora**:
-   - Pastikan opsi *3rd Party Connection* sudah aktif di dalam pengaturan aplikasi IVAO Aurora (menggunakan port TCP 1130).
-   - Pastikan indikator status di pojok kanan atas dashboard menunjukkan `AURORA: ONLINE` (hijau berkedip) atau `AURORA: DEMO MODE` (oranye).
-2. **Memilih Runway Config**:
-   - Runway keberangkatan (DEP) dan kedatangan (ARR) untuk setiap bandara dideteksi secara otomatis dari Aurora. Anda dapat menyesuaikannya melalui tombol konfigurasi runway di panel dashboard jika diperlukan.
-3. **Mencocokkan & Memilih Prosedur**:
-   - Daftar pesawat akan otomatis terbagi menjadi panel **Departures (SID)** dan **Arrivals (STAR)**.
-   - Sistem akan menganalisis rute filed flight plan dan memberikan rekomendasi prosedur terbaik berdasarkan runway aktif.
-4. **Mengirim Prosedur ke Aurora (Assign)**:
-   - Pilih baris pesawat yang ingin diproses.
-   - Klik tombol **Assign** untuk mengirimkan kode prosedur terpilih (maksimal 12 karakter) ke Aurora. Label ini akan muncul di kolom *waypoint/scratchpad* flight strip pesawat di layar radar Aurora Anda.
-   - Klik tombol **Clear** jika ingin menghapus label penugasan tersebut dari strip.
+1. **Connecting to Aurora**:
+   - Ensure *3rd Party Connection* is enabled in your IVAO Aurora client settings (using TCP port 1130).
+   - Verify the connection status indicator at the top right of the dashboard reads `AURORA: ONLINE` or `AURORA: DEMO MODE`.
+2. **Runway Configurations**:
+   - The active runways for departures (DEP) and arrivals (ARR) are automatically retrieved from Aurora. You can manually adjust them through the runway configuration button on the dashboard panel if necessary.
+3. **Matching & Selection**:
+   - Traffic is automatically separated into **Departures (SID)** and **Arrivals (STAR)** panels.
+   - The system analyzes flight plan routes and highlights the best matching procedure based on the active runway config.
+4. **Assigning to Aurora**:
+   - Select an aircraft from the list.
+   - Click the **Assign** button to push the procedure designator (up to 12 characters) to Aurora. The label will appear in the waypoint/scratchpad field of the aircraft's flight strip.
+   - Click **Clear** to remove the designator label from the strip.
 
 ---
 
-## ❌ Troubleshooting & Penanganan Masalah
+## ❌ Troubleshooting
 
-- **Status `AURORA: OFFLINE`**:
-  Pastikan Aurora Client sudah berjalan, Anda sedang terhubung online/simulasi di Aurora, dan opsi *3rd Party Connection* aktif.
-- **Error `traffic not assumed` saat Assign**:
-  Sebelum Anda dapat mengirim label ke flight strip pesawat, Anda harus terlebih dahulu melakukan **Assume (F3)** terhadap pesawat tersebut di dalam client Aurora. Jika belum di-assume, Aurora akan menolak perubahan data strip dari pihak ketiga.
-- **Daftar Prosedur Kosong**:
-  Periksa kembali konfigurasi `SECTOR_FILES_PATH`. Pastikan mengarah ke folder yang tepat (misal: `SectorFiles/Include`) di mana di dalamnya terdapat struktur subfolder FIR dan bandara (contoh: `Include/WIIF/Airports/WIII.sid`).
+- **`AURORA: OFFLINE` status**:
+  Verify that the Aurora client is running, you are connected or simulating, and the *3rd Party Connection* setting is enabled.
+- **`traffic not assumed` error during Assign**:
+  Before you can assign a scratchpad label or waypoint to an aircraft flight strip via a 3rd party plugin, you must **Assume (F3)** the aircraft in the Aurora client first. Otherwise, Aurora will reject the assignment.
+- **No procedures showing**:
+  Double-check your `SECTOR_FILES_PATH` in `.env` or in the Setup GUI. It must point to a directory that contains the FIR/Airports subdirectory structure (e.g. `Include/WIIF/Airports/WIII.sid`).
